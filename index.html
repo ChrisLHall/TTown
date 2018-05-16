@@ -1,0 +1,31 @@
+<html><head>
+<title>T Town Bot</title>
+<meta charset='UTF-8' />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/> <!--320-->
+<link rel="stylesheet" href="index.css">
+</head>
+<body>
+<p><input type="button" value="reload" onclick="window.location.reload(true)" /></p>
+<br><br><br>
+Hello there testing testing
+<p id="emojimap"></p>
+<br><br>
+<p id="map"></p>
+<input type="button" value="new map" onclick="newMap()" />
+<p id="DEBUGTEXT">
+</p>
+<script type="text/javascript" src="ttownbot.js"></script>
+<script type="text/javascript" src="debug.js"></script>
+<script type="text/javascript">
+var map = []
+var objects = []
+function newMap() {
+  map = initMap()
+  var reg = render(false, map, objects)
+  var emo = render(true, map, objects)
+  document.getElementById("map").innerText = reg
+  document.getElementById("emojimap").innerText = emo
+}
+</script>
+</body>
+</html>
