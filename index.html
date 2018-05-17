@@ -12,6 +12,7 @@ Hello there testing testing
 <br><br>
 <p id="map"></p>
 <input type="button" value="new map" onclick="newMap()" />
+<input type="button" value="simulate" onclick="doSimulate()" />
 <p id="DEBUGTEXT">
 </p>
 <script type="text/javascript" src="ttownbot.js"></script>
@@ -21,6 +22,15 @@ var map = []
 var objects = []
 function newMap() {
   map = initMap()
+  objects = []
+  spawnAnimals(objects, 5)
+  renderCurrent()
+}
+function doSimulate() {
+  simulate(objects)
+  renderCurrent()
+}
+function renderCurrent() {
   var reg = render(false, map, objects)
   var emo = render(true, map, objects)
   document.getElementById("map").innerText = reg
