@@ -1,10 +1,22 @@
 function listRand(list) { return list[Math.floor(Math.random() * list.length)] }
 function clamp(num, min, max) {
   return Math.min(Math.max(num, min), max);
-};
+}
 
 var WIDTH = 13
 var HEIGHT = 9
+
+var HOME_MAP_TEMPLATE = [
+  "t.tt...~~~~~",
+  "..t.tr.ddd~~",
+  "pp..tt..~~~~",
+  "tp.t.tt..~~~",
+  ".pttt.t..tt.",
+  ".pr..r.fffff",
+  "tpt.,,,fgggg",
+  "tHt....fgggg",
+  "ttt.,,,fgggg",
+];
 
 function initMap() {
   var map = []
@@ -23,11 +35,23 @@ function initMap() {
     map.push(rowList)
   }
   return map
-}
+};
 
-function generateLake(map) {
-  
-}
+function initMapFromTemplate(template) {
+  console.log("hi")
+  var h = "hi"
+  var map = []
+  for (var row = 0; row < template.length; row++) {
+    var rowList = []
+    var tempStr = template[row]
+    for (var col = 0; col < tempStr.length; col++) {
+      var tile = tempStr[col]
+      rowList.push(tile)
+    }
+    map.push(rowList)
+  }
+  return map
+};
 
 function spawnAnimals(objects, num) {
   for (var j = 0; j < num; j++) {
@@ -46,8 +70,20 @@ function simulate(objects) {
 
 var EMOJI_SUBS = {
   ".": "🌿",
-  "r": "🌹",
+  //fertile dirt
+  ",": "〰",
+  "r": "🍃",
   "t": "🌳",
+  "H": "🏡",
+  "~": "🌊",
+  // dock
+  "d": "📁",
+  // fence
+  "f": "📔",
+  // grass/pasture
+  "g": "🌾",
+  // path
+  "p": "🍪",
 }
 
 function render(isEmoji, map, objects) {

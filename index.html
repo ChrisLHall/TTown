@@ -12,11 +12,12 @@ Hello there testing testing
 <br><br>
 <p id="map"></p>
 <input type="button" value="new map" onclick="newMap()" />
+<input type="button" value="new home map" onclick="newHomeMap()" />
 <input type="button" value="simulate" onclick="doSimulate()" />
 <p id="DEBUGTEXT">
 </p>
-<script type="text/javascript" src="ttownbot.js"></script>
 <script type="text/javascript" src="debug.js"></script>
+<script type="text/javascript" src="ttownbot.js"></script>
 <script type="text/javascript">
 var map = []
 var objects = []
@@ -24,6 +25,14 @@ function newMap() {
   map = initMap()
   objects = []
   spawnAnimals(objects, 5)
+  renderCurrent()
+}
+function newHomeMap() {
+  console.log("wataho")
+  console.log(initMapFromTemplate)
+  map = initMapFromTemplate(HOME_MAP_TEMPLATE)
+  
+  objects = []
   renderCurrent()
 }
 function doSimulate() {
