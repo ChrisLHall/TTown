@@ -76,7 +76,7 @@ function render(isEmoji, map, objects) {
     }
     outMap.push(outMapRow)
   }
-  
+
   for (var o = 0; o < objects.length; o++) {
     var obj = objects[o]
     console.log(obj.type)
@@ -87,7 +87,7 @@ function render(isEmoji, map, objects) {
       }
     }
   }
-  
+
   console.log("ready to render outmap")
   var out = ""
   for (var row = 0; row < outMap.length; row++) {
@@ -176,16 +176,16 @@ Biome.types = {
     "tHt....fgggg",
     "ttt.,,,fgggg",
     ],
-    tileSpawnTypes: [".", ".", ".", ".", "t", "t", "r" ]
-    animalSpawnTypes: ["snail", "snail", "snail", "bee", "bee", "frog"]
+    tileSpawnTypes: [".", ".", ".", ".", "t", "t", "r" ],
+    animalSpawnTypes: ["snail", "snail", "snail", "bee", "bee", "frog"],
     numAnimals: 3,
   },
   "forest": {
     template: null,
-    tileSpawnTypes: [".", ".", ".", "t", "t", "r" ]
-    animalSpawnTypes: ["snail", "snail", "bee"]
+    tileSpawnTypes: [".", ".", ".", "t", "t", "r" ],
+    animalSpawnTypes: ["snail", "snail", "bee"],
     numAnimals: 5,
-  }, 
+  },
   "desert": {
     template: null,
     tileSpawnTypes: ["s", "s", "s", "d", "d", "d", "c", "c", "w"],
