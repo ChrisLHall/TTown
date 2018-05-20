@@ -12,36 +12,29 @@ Hello there testing testing
 <br><br>
 <p id="map"></p>
 <input type="button" value="new map" onclick="newMap()" />
-<input type="button" value="new home map" onclick="newHomeMap()" />
 <input type="button" value="simulate" onclick="doSimulate()" />
 <p id="DEBUGTEXT">
 </p>
 <script type="text/javascript" src="debug.js"></script>
 <script type="text/javascript" src="ttownbot.js"></script>
 <script type="text/javascript">
-var map = []
-var objects = []
+var sim = null;
 function newMap() {
-  map = initMap()
-  objects = []
-  spawnAnimals(objects, 5)
-  renderCurrent()
-}
-function newHomeMap() {
-  console.log("wataho")
-  console.log(initMapFromTemplate)
-  map = initMapFromTemplate(HOME_MAP_TEMPLATE)
-  
-  objects = []
+  console.log("new map")
+  sim = new Simulation()
+  console.log("renderin")
   renderCurrent()
 }
 function doSimulate() {
-  simulate(objects)
+  if (!sim) return;
+  sim.simulate()
   renderCurrent()
 }
 function renderCurrent() {
-  var reg = render(false, map, objects)
-  var emo = render(true, map, objects)
+  if (!sim) return;
+  console.log("rendering")
+  var reg = sim.render(false)
+  var emo = sim.render(true)
   document.getElementById("map").innerText = reg
   document.getElementById("emojimap").innerText = emo
 }

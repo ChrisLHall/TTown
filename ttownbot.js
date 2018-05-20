@@ -3,60 +3,33 @@ function clamp(num, min, max) {
   return Math.min(Math.max(num, min), max);
 }
 
-var WIDTH = 13
+var WIDTH = 12
 var HEIGHT = 9
 
-var HOME_MAP_TEMPLATE = [
-  "t.tt...~~~~~",
-  "..t.tr.ddd~~",
-  "pp..tt..~~~~",
-  "tp.t.tt..~~~",
-  ".pttt.t..tt.",
-  ".pr..r.fffff",
-  "tpt.,,,fgggg",
-  "tHt....fgggg",
-  "ttt.,,,fgggg",
-];
-
-function initMap() {
+function initMap(tileTypes, template) {
+  console.log("hi")
+  console.log(template ? "template" : "no template")
   var map = []
   for (var row = 0; row < HEIGHT; row++) {
     var rowList = []
+    var tempStr = template ? template[row] : null;
     for (var col = 0; col < WIDTH; col++) {
-      var rand = Math.random()
-      var tile = "."
-      if (rand < .1) {
-        tile = "r"
-      } else if (rand < .4) {
-        tile = "t"
+      var tile = template ? tempStr[col] : "?";
+      if (tile === "?") {
+        tile = listRand(tileTypes)
       }
+      console.log("made tile " + tile)
       rowList.push(tile)
     }
     map.push(rowList)
   }
   return map
-};
+}
 
-function initMapFromTemplate(template) {
-  console.log("hi")
-  var h = "hi"
-  var map = []
-  for (var row = 0; row < template.length; row++) {
-    var rowList = []
-    var tempStr = template[row]
-    for (var col = 0; col < tempStr.length; col++) {
-      var tile = tempStr[col]
-      rowList.push(tile)
-    }
-    map.push(rowList)
-  }
-  return map
-};
-
-function spawnAnimals(objects, num) {
+function spawnAnimals(objects, types, num) {
   for (var j = 0; j < num; j++) {
     console.log("spawning " + j)
-    var type = listRand(Animal.spawnTypes)
+    var type = listRand(types)
     var animal = new Animal(Math.floor(Math.random() * WIDTH), Math.floor(Math.random() * HEIGHT), type)
     objects.push(animal)
   }
@@ -69,6 +42,7 @@ function simulate(objects) {
 }
 
 var EMOJI_SUBS = {
+  "?": "🚫",
   ".": "🌿",
   //fertile dirt
   ",": "〰",
@@ -84,6 +58,10 @@ var EMOJI_SUBS = {
   "g": "🌾",
   // path
   "p": "🍪",
+  // desert
+  "s": "📓",
+  "c": "🌵",
+  "w": "☠",
 }
 
 function render(isEmoji, map, objects) {
@@ -120,7 +98,6 @@ function render(isEmoji, map, objects) {
     out += "\n"
   }
   console.log("done")
-  console.log("map: " + out)
   return out
 }
 
@@ -147,10 +124,99 @@ Animal.types = {
     speed: 3,
   },
   "snail": {
-    text: "s",
+    text: "9",
     emoji: "🐌",
     speed: 1,
+  },
+  "snake": {
+    text: "S",
+    emoji: "🐍",
+    speed: 2,
+  },
+  "turtle": {
+    text: "t",
+    emoji: "🐢",
+    speed: 1,
+  },
+  "bee": {
+    text: "b",
+    emoji: "🐝",
+    speed: 3,
+  },
+}
+
+var Biome = function(type) {
+  console.log("creatng biome " + type)
+  this.type = type
+  this.info = Biome.types[type]
+  this.map = initMap(this.info.tileSpawnTypes, this.info.template)
+  this.objects = []
+  spawnAnimals(this.objects, this.info.animalSpawnTypes, this.info.numAnimals)
+  console.log("made biome " + type)
+}
+
+Biome.prototype.render = function(isEmoji) {
+  return render(isEmoji, this.map, this.objects)
+}
+
+Biome.prototype.simulate = function() {
+  simulate(this.objects)
+}
+
+Biome.types = {
+  "home": {
+    template: [
+    "???????~~~~~",
+    "???????ddd~~",
+    "????????~~~~",
+    "pp???????~~~",
+    "?p??????????",
+    "?pr....fffff",
+    "tpt.,,,fgggg",
+    "tHt....fgggg",
+    "ttt.,,,fgggg",
+    ],
+    tileSpawnTypes: [".", ".", ".", ".", "t", "t", "r" ]
+    animalSpawnTypes: ["snail", "snail", "snail", "bee", "bee", "frog"]
+    numAnimals: 3,
+  },
+  "forest": {
+    template: null,
+    tileSpawnTypes: [".", ".", ".", "t", "t", "r" ]
+    animalSpawnTypes: ["snail", "snail", "bee"]
+    numAnimals: 5,
+  }, 
+  "desert": {
+    template: null,
+    tileSpawnTypes: ["s", "s", "s", "d", "d", "d", "c", "c", "w"],
+    animalSpawnTypes: ["turtle", "turtle", "turtle", "snake", "bee"],
+    numAnimals: 3,
+  },
+}
+// pick from this list when traveling
+Biome.travelToTypes = [ "forest", "forest", "desert" ]
+
+var Simulation = function() {
+  console.log("making sim")
+  this.tick = 0
+  this.home = new Biome("home")
+  this.travelingToBiome = null
+  console.log("new sim made")
+}
+
+Simulation.prototype.render = function(isEmoji) {
+  if (this.travelingToBiome) {
+    return this.travelingToBiome.render(isEmoji)
+  } else {
+    return this.home.render(isEmoji)
   }
 }
 
-Animal.spawnTypes = ["snail", "snail", "frog"]
+Simulation.prototype.simulate = function() {
+  this.tick++
+  if (this.travelingToBiome) {
+    this.travelingToBiome.simulate()
+  } else {
+    this.home.simulate()
+  }
+}
