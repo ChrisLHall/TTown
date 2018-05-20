@@ -76,7 +76,7 @@ function render(isEmoji, map, objects) {
     }
     outMap.push(outMapRow)
   }
-
+  
   for (var o = 0; o < objects.length; o++) {
     var obj = objects[o]
     console.log(obj.type)
@@ -87,7 +87,7 @@ function render(isEmoji, map, objects) {
       }
     }
   }
-
+  
   console.log("ready to render outmap")
   var out = ""
   for (var row = 0; row < outMap.length; row++) {
@@ -109,7 +109,7 @@ var Animal = function(x, y, type) {
 }
 
 Animal.prototype.simulate = function() {
-  if (Math.random() < .3) {
+  if (Math.random() < .9) {
     var dx = -this.info.speed + Math.floor(Math.random() * (2 * this.info.speed + 1))
     var dy = -this.info.speed + Math.floor(Math.random() * (2 * this.info.speed + 1))
     this.x = clamp(this.x + dx, 0, WIDTH - 1)
@@ -185,7 +185,7 @@ Biome.types = {
     tileSpawnTypes: [".", ".", ".", "t", "t", "r" ],
     animalSpawnTypes: ["snail", "snail", "bee"],
     numAnimals: 5,
-  },
+  }, 
   "desert": {
     template: null,
     tileSpawnTypes: ["s", "s", "s", "d", "d", "d", "c", "c", "w"],
@@ -214,9 +214,24 @@ Simulation.prototype.render = function(isEmoji) {
 
 Simulation.prototype.simulate = function() {
   this.tick++
+  var timeOfDay = tick % 12
+  console.log("time "+ timeOfDay)
+  if (this.travelingToBiome) {
+    if (timeOfDay === 7) {
+      console.log("coming home")
+      this.travelingToBiome = null
+    }
+  } else {
+    if (timeOfDay === 3 && Math.random() < .5) {
+      console.log("traveling")
+      this.travelingToBiome = new Biome(listRand(Biome.travelToTypes))
+    }
+  }
+  
   if (this.travelingToBiome) {
     this.travelingToBiome.simulate()
   } else {
     this.home.simulate()
   }
+  console.log("simulated")
 }
