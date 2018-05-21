@@ -76,7 +76,7 @@ function render(isEmoji, map, objects) {
     }
     outMap.push(outMapRow)
   }
-  
+
   for (var o = 0; o < objects.length; o++) {
     var obj = objects[o]
     console.log(obj.type)
@@ -87,7 +87,7 @@ function render(isEmoji, map, objects) {
       }
     }
   }
-  
+
   console.log("ready to render outmap")
   var out = ""
   for (var row = 0; row < outMap.length; row++) {
@@ -181,13 +181,11 @@ Biome.types = {
     numAnimals: 3,
   },
   "forest": {
-    template: null,
     tileSpawnTypes: [".", ".", ".", "t", "t", "r" ],
     animalSpawnTypes: ["snail", "snail", "bee"],
     numAnimals: 5,
-  }, 
+  },
   "desert": {
-    template: null,
     tileSpawnTypes: ["s", "s", "s", "d", "d", "d", "c", "c", "w"],
     animalSpawnTypes: ["turtle", "turtle", "turtle", "snake", "bee"],
     numAnimals: 3,
@@ -195,6 +193,60 @@ Biome.types = {
 }
 // pick from this list when traveling
 Biome.travelToTypes = [ "forest", "forest", "desert" ]
+
+var WEATHER_EMOJI_SUBS = {
+  "S": "🌞",
+  "s": "🌤",
+  "R": "🌄",
+  "r": "🌅",
+  "w": "🔴",
+  "W": "🔶",
+  "d": "🌆",
+  "b": "🔵",
+  "c": "☁",
+  "m": "🌜",
+  "N": "🌌",
+  "n": "⬛",
+  "t": "⭐",
+  "T": "🌟",
+}
+
+// times are 12am (0) - 10pm (11)
+// sunrise is 6am (3)
+// day is 8am - 6pm (4 - 9)
+// sunset is 8pm (10)
+// night is 10pm thru 4am (11, 0-2)
+function drawTopBar(isEmoji, timeOfDay) {
+  var sunOptions
+  var skyOptions
+  var topBarItems = []
+  if (timeOfDay === 3) {
+    // sunrise
+    sunOptions = ["R"]
+    skyOptions = ["b", "b", "b", "t"]
+  } else if (timeOfDay >= 4 && timeOfDay <= 9) {
+    sunOptions = ["S", "S", "s"]
+    skyOptions = ["b", "b", "c"]
+  } else if (timeOfDay === 10) {
+    sunOptions = ["r"]
+    skyOptions = ["W", "W", "w", "w", "w", "d"]
+  } else {
+    sunOptions = ["m"]
+    skyOptions = ["n", "n", "n", "t", "T", "N"]
+  }
+
+  for (var j = 0; j < WIDTH; j++) {
+    var isSun = (j === timeOfDay)
+    topBarItems.push(listRand(isSun ? sunOptions : skyOptions))
+  }
+
+  var out = ""
+  for (var j = 0; j < topBarItems.length; j++) {
+    var item = topBarItems[j]
+    out += isEmoji ? WEATHER_EMOJI_SUBS[item] : item
+  }
+  return out
+}
 
 var Simulation = function() {
   console.log("making sim")
@@ -205,29 +257,32 @@ var Simulation = function() {
 }
 
 Simulation.prototype.render = function(isEmoji) {
+  var timeOfDay = this.tick % 12
+  var out = drawTopBar(isEmoji, timeOfDay) + "\n"
   if (this.travelingToBiome) {
-    return this.travelingToBiome.render(isEmoji)
+    out += this.travelingToBiome.render(isEmoji)
   } else {
-    return this.home.render(isEmoji)
+    out += this.home.render(isEmoji)
   }
+  return out
 }
 
 Simulation.prototype.simulate = function() {
   this.tick++
-  var timeOfDay = tick % 12
+  var timeOfDay = this.tick % 12
   console.log("time "+ timeOfDay)
   if (this.travelingToBiome) {
-    if (timeOfDay === 7) {
+    if (timeOfDay === 10) {
       console.log("coming home")
       this.travelingToBiome = null
     }
   } else {
-    if (timeOfDay === 3 && Math.random() < .5) {
+    if (timeOfDay === 4 && Math.random() < .5) {
       console.log("traveling")
       this.travelingToBiome = new Biome(listRand(Biome.travelToTypes))
     }
   }
-  
+
   if (this.travelingToBiome) {
     this.travelingToBiome.simulate()
   } else {
