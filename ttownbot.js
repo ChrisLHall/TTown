@@ -194,6 +194,43 @@ Biome.types = {
 // pick from this list when traveling
 Biome.travelToTypes = [ "forest", "forest", "desert" ]
 
+var Character = function() {
+  this.x = 0
+  this.y = 0
+  this.emotion = "normal"
+}
+
+Character.prototype.standAt = function(x, y, emotion) {
+  this.x = x
+  this.y = y
+  this.emotion = emotion
+}
+
+Character.prototype.render = function(isEmoji) {
+  return isEmoji ? CHARACTER_EMOJIS[this.emotion] : "C"
+}
+
+var CHARACTER_EMOJIS = {
+  "normal": "🐱",
+  "happy": "😺",
+  "laughing": "😹",
+  "love": "😻",
+  "scared": "🙀",
+  "angry": "😾",
+}
+
+var CHARACTER_MESSAGES = [
+  {
+    biome: "home",
+    pos: [9, 1],
+    message: "Looking into the pond"
+  }, {
+    biome: "forest",
+    animal: "snail",
+    message: "Aww, a snail!"
+  }
+]
+
 var WEATHER_EMOJI_SUBS = {
   "S": "🌞",
   "s": "🌤",
