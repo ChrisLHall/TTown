@@ -64,8 +64,8 @@ var EMOJI_SUBS = {
   "w": "☠",
 }
 
-function render(isEmoji, map, objects) {
-  console.log("starting render")
+function renderToArray(isEmoji, map, objects) {
+  console.log("starting render to array")
   var outMap = []
   for (var row = 0; row < map.length; row++) {
     var rowList = map[row]
@@ -87,7 +87,11 @@ function render(isEmoji, map, objects) {
       }
     }
   }
+  console.log("rendered to array")
+  return outMap
+}
 
+function renderToString(outMap) {
   console.log("ready to render outmap")
   var out = ""
   for (var row = 0; row < outMap.length; row++) {
@@ -156,7 +160,7 @@ var Biome = function(type) {
 }
 
 Biome.prototype.render = function(isEmoji) {
-  return render(isEmoji, this.map, this.objects)
+  return renderToArray(isEmoji, this.map, this.objects)
 }
 
 Biome.prototype.simulate = function() {
@@ -206,30 +210,11 @@ Character.prototype.standAt = function(x, y, emotion) {
   this.emotion = emotion
 }
 
-Character.prototype.render = function(isEmoji) {
-  return isEmoji ? CHARACTER_EMOJIS[this.emotion] : "C"
+Character.prototype.render = function(isEmoji, outMap) {
+  var icon = isEmoji ? CHARACTER_EMOJIS[this.emotion] : "C"
+  var outMapRow = outMap[clamp(this.y, 0, HEIGHT)]
+  outMapRow[clamp(this.x, 0, WIDTH)] = icon
 }
-
-var CHARACTER_EMOJIS = {
-  "normal": "🐱",
-  "happy": "😺",
-  "laughing": "😹",
-  "love": "😻",
-  "scared": "🙀",
-  "angry": "😾",
-}
-
-var CHARACTER_MESSAGES = [
-  {
-    biome: "home",
-    pos: [9, 1],
-    message: "Looking into the pond"
-  }, {
-    biome: "forest",
-    animal: "snail",
-    message: "Aww, a snail!"
-  }
-]
 
 var WEATHER_EMOJI_SUBS = {
   "S": "🌞",
@@ -288,33 +273,43 @@ function drawTopBar(isEmoji, timeOfDay) {
 var Simulation = function() {
   console.log("making sim")
   this.tick = 0
+  this.timeOfDay = 0
   this.home = new Biome("home")
   this.travelingToBiome = null
+  this.character = new Character()
+  this.message = ""
   console.log("new sim made")
 }
 
 Simulation.prototype.render = function(isEmoji) {
-  var timeOfDay = this.tick % 12
-  var out = drawTopBar(isEmoji, timeOfDay) + "\n"
+  var outMap;
   if (this.travelingToBiome) {
-    out += this.travelingToBiome.render(isEmoji)
+    outMap = this.travelingToBiome.render(isEmoji)
   } else {
-    out += this.home.render(isEmoji)
+    outMap = this.home.render(isEmoji)
+  }
+
+  this.character.render(isEmoji, outMap)
+
+  var out = drawTopBar(isEmoji, this.timeOfDay) + "\n"
+  out += renderToString(outMap)
+  if (this.message.length > 0) {
+    out += "\n" + this.message
   }
   return out
 }
 
 Simulation.prototype.simulate = function() {
   this.tick++
-  var timeOfDay = this.tick % 12
-  console.log("time "+ timeOfDay)
+  this.timeOfDay = this.tick % 12
+  console.log("time "+ this.timeOfDay)
   if (this.travelingToBiome) {
-    if (timeOfDay === 10) {
+    if (this.timeOfDay === 10) {
       console.log("coming home")
       this.travelingToBiome = null
     }
   } else {
-    if (timeOfDay === 4 && Math.random() < .5) {
+    if (this.timeOfDay === 4 && Math.random() < .5) {
       console.log("traveling")
       this.travelingToBiome = new Biome(listRand(Biome.travelToTypes))
     }
@@ -326,4 +321,35 @@ Simulation.prototype.simulate = function() {
     this.home.simulate()
   }
   console.log("simulated")
+
+  this.moveCharacter()
+}
+
+var CHARACTER_EMOJIS = {
+  "normal": "🐱",
+  "happy": "😺",
+  "laughing": "😹",
+  "love": "😻",
+  "scared": "🙀",
+  "angry": "😾",
+}
+
+var CHARACTER_ACTIONS = [
+  {
+    biome: "home",
+    pos: [9, 1],
+    message: "Looking into the pond",
+  }, {
+    biome: "forest",
+    animal: "snail",
+    emotion: "laughing",
+    message: "Aww, a snail!",
+  }
+]
+
+Simulation.prototype.moveCharacter = function() {
+  var possibleActions = []
+  for (var j = 0; j < CHARACTER_ACTIONS.length; j++) {
+    // TODO
+  }
 }
