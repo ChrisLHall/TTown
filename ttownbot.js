@@ -26,12 +26,14 @@ function initMap(tileTypes, template) {
   return map
 }
 
-function spawnAnimals(objects, types, num) {
+function spawnAnimals(biome, types, num) {
   for (var j = 0; j < num; j++) {
     console.log("spawning " + j)
     var type = listRand(types)
-    var animal = new Animal(Math.floor(Math.random() * WIDTH), Math.floor(Math.random() * HEIGHT), type)
-    objects.push(animal)
+    var info = Animal.types[type]
+    var pos = biome.findAllowedPos(info.allowedTiles)
+    var animal = new Animal(pos[0], pos[1], type, biome)
+    biome.objects.push(animal)
   }
 }
 
@@ -51,7 +53,7 @@ var EMOJI_SUBS = {
   "H": "🏡",
   "~": "🌊",
   // dock
-  "d": "📁",
+  "d": "📙",
   // fence
   "f": "📔",
   // grass/pasture
@@ -59,7 +61,7 @@ var EMOJI_SUBS = {
   // path
   "p": "🍪",
   // desert
-  "s": "📓",
+  "s": "📒",
   "c": "🌵",
   "w": "☠",
 }
@@ -105,19 +107,28 @@ function renderToString(outMap) {
   return out
 }
 
-var Animal = function(x, y, type) {
+var Animal = function(x, y, type, biome) {
   this.x = x
   this.y = y
   this.type = type
   this.info = Animal.types[type]
+  this.biome = biome
 }
 
 Animal.prototype.simulate = function() {
   if (Math.random() < .9) {
-    var dx = -this.info.speed + Math.floor(Math.random() * (2 * this.info.speed + 1))
-    var dy = -this.info.speed + Math.floor(Math.random() * (2 * this.info.speed + 1))
-    this.x = clamp(this.x + dx, 0, WIDTH - 1)
-    this.y = clamp(this.y + dy, 0, HEIGHT - 1)
+    // 5 tries
+    for (var j = 0; j < 5; j++) {
+      var dx = -this.info.speed + Math.floor(Math.random() * (2 * this.info.speed + 1))
+      var dy = -this.info.speed + Math.floor(Math.random() * (2 * this.info.speed + 1))
+      var newX = clamp(this.x + dx, 0, WIDTH - 1)
+      var newY = clamp(this.y + dy, 0, HEIGHT - 1)
+      if (this.biome.isAllowedPos(this.info.allowedTiles, newX, newY)) {
+        this.x = newX
+        this.y = newY
+        break
+      }
+    }
   }
 }
 
@@ -126,26 +137,31 @@ Animal.types = {
     text: "f",
     emoji: "🐸",
     speed: 3,
+    allowedTiles: ["~"],
   },
   "snail": {
     text: "9",
     emoji: "🐌",
     speed: 1,
+    allowedTiles: [".", "r"],
   },
   "snake": {
     text: "S",
     emoji: "🐍",
     speed: 2,
+    allowedTiles: ["s", "d"],
   },
   "turtle": {
     text: "t",
     emoji: "🐢",
     speed: 1,
+    allowedTiles: [".", "r", "s", "d", "~"],
   },
   "bee": {
     text: "b",
     emoji: "🐝",
     speed: 3,
+    allowedTiles: [".", "r", "t"],
   },
 }
 
@@ -155,7 +171,7 @@ var Biome = function(type) {
   this.info = Biome.types[type]
   this.map = initMap(this.info.tileSpawnTypes, this.info.template)
   this.objects = []
-  spawnAnimals(this.objects, this.info.animalSpawnTypes, this.info.numAnimals)
+  spawnAnimals(this, this.info.animalSpawnTypes, this.info.numAnimals)
   console.log("made biome " + type)
 }
 
@@ -165,6 +181,29 @@ Biome.prototype.render = function(isEmoji) {
 
 Biome.prototype.simulate = function() {
   simulate(this.objects)
+}
+
+Biome.prototype.findAllowedPos = function(allowedTiles) {
+  var available = []
+  for (var r = 0; r < this.map.length; r++) {
+    var mapRow = this.map[r]
+    for (var c = 0; c < mapRow.length; c++) {
+      var tile = mapRow[c]
+      if (allowedTiles.indexOf(tile) >= 0) {
+        available.push([c, r])
+      }
+    }
+  }
+  if (available.length === 0) {
+    console.log("no available positions")
+    return [0, 0]
+  }
+  return listRand(available)
+}
+
+Biome.prototype.isAllowedPos = function(allowedTiles, x, y) {
+  var tile = this.map[y][x]
+  return (allowedTiles.indexOf(tile) >= 0);
 }
 
 Biome.types = {
