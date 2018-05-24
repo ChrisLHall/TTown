@@ -3,16 +3,23 @@
 <meta charset='UTF-8' />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/> <!--320-->
 <link rel="stylesheet" href="index.css">
+<script src="http://twemoji.maxcdn.com/2/twemoji.min.js?2.7"></script>
+<style>
+.emoji {
+  width: 36px;
+  height: 36px;
+}
+</style>
 </head>
 <body>
 <p><input type="button" value="reload" onclick="window.location.reload(true)" /></p>
 <br><br><br>
-Hello there testing testing
+<input type="button" value="new map" onclick="newMap()" />
+<input type="button" value="simulate" onclick="doSimulate()" />
+<br><br>
 <p id="emojimap"></p>
 <br><br>
 <p id="map"></p>
-<input type="button" value="new map" onclick="newMap()" />
-<input type="button" value="simulate" onclick="doSimulate()" />
 <p id="DEBUGTEXT">
 </p>
 <script type="text/javascript" src="debug.js"></script>
@@ -35,9 +42,9 @@ function renderCurrent() {
   if (!sim) return;
   console.log("rendering")
   var reg = sim.render(false)
-  var emo = sim.render(true)
+  var emo = twemoji.parse(sim.render(true)).split("\n").join("<br>")
   document.getElementById("map").innerText = reg
-  document.getElementById("emojimap").innerText = emo
+  document.getElementById("emojimap").innerHTML = emo
 }
 </script>
 </body>

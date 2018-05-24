@@ -283,11 +283,7 @@ var Simulation = function() {
 
 Simulation.prototype.render = function(isEmoji) {
   var outMap;
-  if (this.travelingToBiome) {
-    outMap = this.travelingToBiome.render(isEmoji)
-  } else {
-    outMap = this.home.render(isEmoji)
-  }
+  outMap = this.getCurrentBiome().render(isEmoji)
 
   this.character.render(isEmoji, outMap)
 
@@ -315,14 +311,17 @@ Simulation.prototype.simulate = function() {
     }
   }
 
-  if (this.travelingToBiome) {
-    this.travelingToBiome.simulate()
-  } else {
-    this.home.simulate()
-  }
+  this.getCurrentBiome().simulate()
   console.log("simulated")
 
-  this.moveCharacter()
+  this.simulateCharacter()
+}
+
+Simulation.prototype.getCurrentBiome = function() {
+  if (this.travelingToBiome) {
+    return this.travelingToBiome
+  }
+  return this.home
 }
 
 var CHARACTER_EMOJIS = {
@@ -347,9 +346,83 @@ var CHARACTER_ACTIONS = [
   }
 ]
 
-Simulation.prototype.moveCharacter = function() {
+Simulation.prototype.simulateCharacter = function() {
+  this.message = ""
+  this.character.emotion = "normal"
+  // list possible actions
   var possibleActions = []
   for (var j = 0; j < CHARACTER_ACTIONS.length; j++) {
     // TODO
+    var action = CHARACTER_ACTIONS[j]
+    var possible = true
+    if (action.hasOwnProperty("biome") && action.biome !== this.getCurrentBiome().type) {
+      possible = false
+    }
+    if (action.hasOwnProperty("animal")) {
+      // look for the animal
+      var found = false
+      var objects = this.getCurrentBiome().objects
+      for (var k = 0; k < objects.length; k++) {
+        var obj = objects[k]
+        if (obj.type === action.animal) {
+          found = true
+          break
+        }
+      }
+      if (!found) {
+        possible = false
+      }
+    }
+    // todo more conditions
+
+    if (possible) {
+      possibleActions.push(action)
+    }
   }
+
+  if (possibleActions.length === 0) {
+    console.log("no possible actions")
+    return
+  }
+  var action = listRand(possibleActions)
+  var newX = this.character.x
+  var newY = this.character.y
+  var newEmotion = listRand(["normal", "happy"])
+  var newMessage = ""
+  // move the character
+  if (action.hasOwnProperty("animal")) {
+    // TODO PICK A RANDOM ONE AND STAND NEXT TO IT
+    var objects = this.getCurrentBiome().objects
+    var animals = []
+    for (var k = 0; k < objects.length; k++) {
+      var obj = objects[k]
+      if (obj.type === action.animal) {
+        animals.push(obj)
+      }
+    }
+    if (animals.length === 0) {
+      console.log("No animals available??? " + action.animal)
+    }
+    var animal = listRand(animals)
+    if (animal.x >= 1) {
+      newX = animal.x - 1
+    } else {
+      newX = animal.x + 1
+    }
+    newY = animal.y
+  } else if (action.hasOwnProperty("pos")) {
+    newX = action.pos[0]
+    newY = action.pos[1]
+  }
+
+  if (action.hasOwnProperty("emotion")) {
+    newEmotion = action.emotion
+  }
+  if (action.hasOwnProperty("message")) {
+    newMessage = action.message
+  }
+
+  //apply
+  this.character.standAt(newX, newY, newEmotion)
+  this.message = newMessage
 }
