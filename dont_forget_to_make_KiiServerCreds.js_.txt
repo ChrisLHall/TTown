@@ -3,14 +3,20 @@
 // only one with write privileges
 
 // Credentials will not be commited to the repo
-var KiiServerCreds = function () {
-  var username = "" // username here
-  var password = "" // password here
+;(function() {
+  var KiiServerCreds = function () {
+    var username = "" // username here
+    var password = "" // password here
 
-  return {
-    username: username,
-    password: password
+    return {
+      username: username,
+      password: password
+    }
   }
-}
 
-module.exports = KiiServerCreds
+  if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = KiiServerCreds
+  } else {
+    window.KiiServerCreds = KiiServerCreds
+  }
+})();

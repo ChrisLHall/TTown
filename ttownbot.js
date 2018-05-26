@@ -37,6 +37,17 @@ function spawnAnimals(biome, types, num) {
   }
 }
 
+function kiiLogin(kiiObj, kiiUserObj) {
+  kiiObj.initializeWithSite("l31z3ww8lfm7", "780253b2617d4c6eb9e21633e129da1f", KiiSite.US)
+  kiiUserObj.authenticate(KiiServerCreds.username, KiiServerCreds.password).then(function (user) {
+    console.log("Kii Admin User authenticated.")
+    // confirm login here
+  }).catch(function (error) {
+    var errorString = error.message;
+    console.log("FAILED Kii Admin authentication: " + errorString);
+  });
+}
+
 function simulate(objects) {
   for (var o = 0; o < objects.length; o++) {
     objects[o].simulate()
