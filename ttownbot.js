@@ -7,8 +7,7 @@ var WIDTH = 12
 var HEIGHT = 9
 
 function initMap(tileTypes, template) {
-  console.log("hi")
-  console.log(template ? "template" : "no template")
+  console.log(template ? "map template" : "no map template")
   var map = []
   for (var row = 0; row < HEIGHT; row++) {
     var rowList = []
@@ -18,40 +17,11 @@ function initMap(tileTypes, template) {
       if (tile === "?") {
         tile = listRand(tileTypes)
       }
-      console.log("made tile " + tile)
       rowList.push(tile)
     }
     map.push(rowList)
   }
   return map
-}
-
-function spawnAnimals(biome, types, num) {
-  for (var j = 0; j < num; j++) {
-    console.log("spawning " + j)
-    var type = listRand(types)
-    var info = Animal.types[type]
-    var pos = biome.findAllowedPos(info.allowedTiles)
-    var animal = new Animal(pos[0], pos[1], type, biome)
-    biome.objects.push(animal)
-  }
-}
-
-function kiiLogin(kiiObj, kiiUserObj) {
-  kiiObj.initializeWithSite("l31z3ww8lfm7", "780253b2617d4c6eb9e21633e129da1f", KiiSite.US)
-  kiiUserObj.authenticate(KiiServerCreds.username, KiiServerCreds.password).then(function (user) {
-    console.log("Kii Admin User authenticated.")
-    // confirm login here
-  }).catch(function (error) {
-    var errorString = error.message;
-    console.log("FAILED Kii Admin authentication: " + errorString);
-  });
-}
-
-function simulate(objects) {
-  for (var o = 0; o < objects.length; o++) {
-    objects[o].simulate()
-  }
 }
 
 var EMOJI_SUBS = {
@@ -118,15 +88,26 @@ function renderToString(outMap) {
   return out
 }
 
-var Animal = function(x, y, type, biome) {
-  this.x = x
-  this.y = y
-  this.type = type
-  this.info = Animal.types[type]
-  this.biome = biome
+var Animal = function () {
+  this.fromJSON({})
 }
 
-Animal.prototype.simulate = function() {
+Animal.prototype.toJSON = function () {
+  return {
+    x: this.x,
+    y: this.y,
+    type: this.type,
+  }
+}
+
+Animal.prototype.fromJSON = function (json) {
+  this.x = json.x || 0
+  this.y = json.y || 0
+  this.type = json.type || "bee"
+  this.info = Animal.types[this.type]
+}
+
+Animal.prototype.simulate = function(biome) {
   if (Math.random() < .9) {
     // 5 tries
     for (var j = 0; j < 5; j++) {
@@ -134,7 +115,7 @@ Animal.prototype.simulate = function() {
       var dy = -this.info.speed + Math.floor(Math.random() * (2 * this.info.speed + 1))
       var newX = clamp(this.x + dx, 0, WIDTH - 1)
       var newY = clamp(this.y + dy, 0, HEIGHT - 1)
-      if (this.biome.isAllowedPos(this.info.allowedTiles, newX, newY)) {
+      if (biome.isAllowedPos(this.info.allowedTiles, newX, newY)) {
         this.x = newX
         this.y = newY
         break
@@ -182,8 +163,50 @@ var Biome = function(type) {
   this.info = Biome.types[type]
   this.map = initMap(this.info.tileSpawnTypes, this.info.template)
   this.objects = []
-  spawnAnimals(this, this.info.animalSpawnTypes, this.info.numAnimals)
+  this.spawnAnimals(this.info.animalSpawnTypes, this.info.numAnimals)
   console.log("made biome " + type)
+}
+
+Biome.prototype.toJSON = function() {
+  var objectsJSON = []
+  for (var j = 0; j < this.objects.length; j++) {
+    objectsJSON.push(this.objects[j].toJSON())
+  }
+  return {
+    type: this.type,
+    map: this.map,
+    objects: objectsJSON,
+  }
+}
+
+Biome.prototype.fromJSON = function(json) {
+  this.type = json.type || "forest"
+  this.info = Biome.types[this.type]
+  if (json.map) {
+    this.map = json.map
+  } else {
+    this.map = initMap(this.info.tileSpawnTypes, this.info.template)
+  }
+  if (json.objects) {
+    this.objects = []
+    for (var j = 0; j < json.objects.length; j++) {
+      var obj = new Animal()
+      obj.fromJSON(json.objects[j])
+      this.objects.push(obj)
+    }
+  }
+}
+
+Biome.prototype.spawnAnimals = function (types, num) {
+  for (var j = 0; j < num; j++) {
+    console.log("spawning " + j)
+    var type = listRand(types)
+    var info = Animal.types[type]
+    var pos = this.findAllowedPos(info.allowedTiles)
+    var animal = new Animal()
+    animal.fromJSON({ x: pos[0], y: pos[1], type: type, })
+    this.objects.push(animal)
+  }
 }
 
 Biome.prototype.render = function(isEmoji) {
@@ -191,7 +214,9 @@ Biome.prototype.render = function(isEmoji) {
 }
 
 Biome.prototype.simulate = function() {
-  simulate(this.objects)
+  for (var o = 0; o < this.objects.length; o++) {
+    this.objects[o].simulate(this)
+  }
 }
 
 Biome.prototype.findAllowedPos = function(allowedTiles) {
@@ -249,9 +274,21 @@ Biome.types = {
 Biome.travelToTypes = [ "forest", "forest", "desert" ]
 
 var Character = function() {
-  this.x = 0
-  this.y = 0
-  this.emotion = "normal"
+  this.fromJSON({})
+}
+
+Character.prototype.toJSON = function() {
+  return {
+    x: this.x,
+    y: this.y,
+    emotion: this.emotion,
+  }
+}
+
+Character.prototype.fromJSON = function(json) {
+  this.x = json.x || 0
+  this.y = json.y || 0
+  this.emotion = json.emotion || "normal"
 }
 
 Character.prototype.standAt = function(x, y, emotion) {
@@ -322,13 +359,57 @@ function drawTopBar(isEmoji, timeOfDay) {
 
 var Simulation = function() {
   console.log("making sim")
-  this.tick = 0
-  this.timeOfDay = 0
-  this.home = new Biome("home")
-  this.travelingToBiome = null
-  this.character = new Character()
-  this.message = ""
+  this.fromJSON({})
   console.log("new sim made")
+}
+
+Simulation.prototype.toJSON = function() {
+  console.log("writing sim to json")
+  return {
+    tick: this.tick,
+    timeOfDay: this.timeOfDay,
+    home: this.home.toJSON(),
+    travelingToBiome: (this.travelingToBiome ? this.travelingToBiome.toJSON() : null),
+    character: this.character.toJSON(),
+    message: this.message,
+  }
+}
+
+Simulation.prototype.fromJSON = function(json) {
+  console.log("reading sim from json")
+  this.tick = json.tick || 0
+  this.timeOfDay = json.timeOfDay || 0
+  if (json.home) {
+    this.home = new Biome("home")
+    this.home.fromJSON(json.home)
+  } else {
+    this.home = new Biome("home")
+  }
+  if (json.travelingToBiome) {
+    this.travelingToBiome = new Biome("forest") // temporary
+    this.travelingToBiome.fromJSON(json.travelingToBiome)
+  } else {
+    this.travelingToBiome = null
+  }
+  if (json.character) {
+    this.character = new Character()
+    this.character.fromJSON(json.character)
+  } else {
+    this.character = new Character()
+  }
+  this.message = json.message || ""
+}
+
+Simulation.prototype.kiiLogin = function(kiiObj, kiiUserObj, kiiServerCreds) {
+  console.log("trying to login to " + kiiServerCreds.username)
+  kiiObj.initializeWithSite("l31z3ww8lfm7", "780253b2617d4c6eb9e21633e129da1f", KiiSite.US)
+  kiiUserObj.authenticate(kiiServerCreds.username, kiiServerCreds.password).then(function (user) {
+    console.log("Kii Admin User authenticated.")
+    // confirm login here
+  }).catch(function (error) {
+    var errorString = error.message;
+    console.log("FAILED Kii Admin authentication: " + errorString);
+  });
 }
 
 Simulation.prototype.render = function(isEmoji) {

@@ -6,17 +6,20 @@
 <script src="http://twemoji.maxcdn.com/2/twemoji.min.js?2.7"></script>
 <style>
 .emoji {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
 }
 </style>
 </head>
 <body>
 <p><input type="button" value="reload" onclick="window.location.reload(true)" /></p>
 <br><br><br>
-<input type="button" value="connect kii" onclick="kiiLogin(Kii, KiiUser)" />
+<input type="button" value="connect kii" onclick="doKiiLogin()" />
 <input type="button" value="new map" onclick="newMap()" />
 <input type="button" value="simulate" onclick="doSimulate()" />
+<br><br>
+<input type="button" value="to json" onclick="doToJSON()" />
+<input type="button" value="from json" onclick="doFromJSON()" />
 <br><br>
 <p id="emojimap"></p>
 <br><br>
@@ -29,16 +32,29 @@
 <script type="text/javascript" src="ttownbot.js"></script>
 <script type="text/javascript">
 var sim = null;
+var tempJSON = {}
 function newMap() {
   console.log("new map")
   sim = new Simulation()
   console.log("renderin")
   renderCurrent()
 }
+newMap()
+function doKiiLogin() {
+  console.log("starting kii login")
+  sim.kiiLogin(Kii, KiiUser, window.KiiServerCreds())
+}
 function doSimulate() {
   if (!sim) return;
   console.log("simulating")
   sim.simulate()
+  renderCurrent()
+}
+function doToJSON() {
+  tempJSON = sim.toJSON()
+}
+function doFromJSON() {
+  sim.fromJSON(tempJSON)
   renderCurrent()
 }
 function renderCurrent() {
