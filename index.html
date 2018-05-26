@@ -23,6 +23,8 @@
 <br><br>
 <p id="emojimap"></p>
 <br><br>
+<p id="rawemojimap"></p>
+<br><br>
 <p id="map"></p>
 <p id="DEBUGTEXT">
 </p>
@@ -61,8 +63,10 @@ function renderCurrent() {
   if (!sim) return;
   console.log("rendering")
   var reg = sim.render(false)
-  var emo = twemoji.parse(sim.render(true)).split("\n").join("<br>")
+  var rawEmo = sim.render(true)
+  var emo = twemoji.parse(rawEmo).split("\n").join("<br>")
   document.getElementById("map").innerText = reg
+  document.getElementById("rawemojimap").innerText = rawEmo
   document.getElementById("emojimap").innerHTML = emo
 }
 </script>
