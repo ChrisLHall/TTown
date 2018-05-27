@@ -1,0 +1,22 @@
+{
+  "name": "ttownbot",
+  "version": "0.0.1",
+  "description": "bot that posts a little town on twitter every once in a while",
+  "main": "server.js",
+  "scripts": {
+    "test": "node ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://ChrisLHall@github.com/ChrisLHall/TTown.git"
+  },
+  "author": "Christopher Hall",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ChrisLHall/TTown/issues"
+  },
+  "homepage": "https://github.com/ChrisLHall/TTown#readme",
+  "dependencies": {
+    "twit": "^2.2.9"
+  }
+}
