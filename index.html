@@ -20,6 +20,8 @@
 <br><br>
 <input type="button" value="to json" onclick="doToJSON()" />
 <input type="button" value="from json" onclick="doFromJSON()" />
+<input type="button" value="kii save" onclick="doKiiSave()" />
+<input type="button" value="kii load" onclick="doKiiLoad()" />
 <br><br>
 <p id="emojimap"></p>
 <br><br>
@@ -58,6 +60,12 @@ function doToJSON() {
 function doFromJSON() {
   sim.fromJSON(tempJSON)
   renderCurrent()
+}
+function doKiiSave() {
+  sim.kiiSave(Kii)
+}
+function doKiiLoad() {
+  sim.kiiLoad(Kii, KiiQuery, renderCurrent)
 }
 function renderCurrent() {
   if (!sim) return;

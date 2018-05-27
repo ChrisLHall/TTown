@@ -412,6 +412,48 @@ Simulation.prototype.kiiLogin = function(kiiObj, kiiUserObj, kiiServerCreds) {
   });
 }
 
+Simulation.prototype.kiiSave = function(kiiObj) {
+  var bucket = kiiObj.bucketWithName("History");
+  var obj = bucket.createObject();
+  var json = this.toJSON()
+  for (var key in json) {
+    if (json.hasOwnProperty(key)) {
+      obj.set(key, json[key]);
+    }
+  }
+
+  obj.save().then(function (obj) {
+    console.log("Saved to kii successfully")
+  }).catch(function (error) {
+    var errorString = "" + error.code + ": " + error.message
+    console.log("unable to save game: " + errorString);
+  });
+}
+
+Simulation.prototype.kiiLoad = function(kiiObj, kiiQueryObj, onLoadSuccessful) {
+  var queryObject = kiiQueryObj.queryWithClause(null);
+  queryObject.sortByDesc("_created");
+  var bucket = kiiObj.bucketWithName("History");
+  var thisSim = this
+  bucket.executeQuery(queryObject).then(function (params) {
+    var queryPerformed = params[0];
+    var result = params[1];
+    var nextQuery = params[2]; // if there are more results
+    if (result.length > 0) {
+      console.log("load query successful")
+      var loadedJSON = result[0]._customInfo
+      console.log(loadedJSON)
+      thisSim.fromJSON(loadedJSON)
+      onLoadSuccessful()
+    } else {
+      console.log("Load failed, no previous states found")
+    }
+  }).catch(function (error) {
+    var errorString = "" + error.code + ":" + error.message;
+    console.log("Load query failed, unable to execute query: " + errorString);
+  });
+}
+
 Simulation.prototype.render = function(isEmoji) {
   var outMap;
   outMap = this.getCurrentBiome().render(isEmoji)
