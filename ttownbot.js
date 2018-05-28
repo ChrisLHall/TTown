@@ -5,7 +5,7 @@
   }
 
   var WIDTH = 12
-  var HEIGHT = 9
+  var HEIGHT = 8
 
   function initMap(tileTypes, template) {
     console.log(template ? "map template" : "no map template")
@@ -248,13 +248,12 @@
       template: [
       "???????~~~~~",
       "???????ddd~~",
-      "????????~~~~",
-      "pp???????~~~",
+      "pp??????~~~~",
+      "?p???????~~~",
       "?p??????????",
-      "?pr....fffff",
-      "tpt.,,,fgggg",
-      "tHt....fgggg",
-      "ttt.,,,fgggg",
+      "tpt.,,,,gggg",
+      "tHt.....gggg",
+      "ttt.,,,,gggg",
       ],
       tileSpawnTypes: [".", ".", ".", ".", "t", "t", "r" ],
       animalSpawnTypes: ["snail", "snail", "snail", "bee", "bee", "frog"],
