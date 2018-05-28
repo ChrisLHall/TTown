@@ -1,0 +1,20 @@
+// TODO MODIFY THESE CREDENTIALS TO MATCH YOUR TWITTER APP
+
+// Credentials will not be commited to the repo
+;(function() {
+  var TwitterCreds = function () {
+    return {
+      consumer_key: "",
+      consumer_secret: "",
+      access_token: "",
+      access_token_secret: "",
+      timeout_ms: 60*1000,
+    }
+  }
+
+  if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = TwitterCreds
+  } else {
+    window.TwitterCreds = TwitterCreds
+  }
+})();

@@ -46,7 +46,7 @@ function newMap() {
 newMap()
 function doKiiLogin() {
   console.log("starting kii login")
-  sim.kiiLogin(Kii, KiiUser, window.KiiServerCreds())
+  sim.kiiLogin(Kii, KiiSite, KiiUser, window.KiiServerCreds(), function () {})
 }
 function doSimulate() {
   if (!sim) return;

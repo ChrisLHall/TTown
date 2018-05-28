@@ -2,7 +2,7 @@
   "name": "ttownbot",
   "version": "0.0.1",
   "description": "bot that posts a little town on twitter every once in a while",
-  "main": "server.js",
+  "main": "bot.js",
   "scripts": {
     "test": "node ."
   },
@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/ChrisLHall/TTown#readme",
   "dependencies": {
+    "kii-cloud-sdk": "^2.4.13",
     "twit": "^2.2.9"
   }
 }
