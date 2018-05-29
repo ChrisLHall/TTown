@@ -372,6 +372,8 @@
       travelingToBiome: (this.travelingToBiome ? this.travelingToBiome.toJSON() : null),
       character: this.character.toJSON(),
       message: this.message,
+      lastTweetID: this.lastTweetID,
+      lastTweetStr: this.lastTweetStr,
     }
   }
 
@@ -398,6 +400,8 @@
       this.character = new Character()
     }
     this.message = json.message || ""
+    this.lastTweetID = json.lastTweetID || null
+    this.lastTweetStr = json.lastTweetStr || null
   }
 
   Simulation.prototype.kiiLogin = function(kiiObj, kiiSiteObj, kiiUserObj, kiiServerCreds, onLoginSuccessful) {
@@ -516,6 +520,18 @@
       animal: "snail",
       emotion: "laughing",
       message: "Aww, a snail!",
+    }, {
+      // TODO FINISH THIS ACTION IMPLEMENTATION @@@@@@@@@@@@@@
+      biome: "home",
+      pos: [1, 6],
+      emotion: "normal",
+      message: "Where should we go today?",
+      options: {
+        // THIS IS NOT PROMISING
+        "gotoForest": { text: "the forest", keyword: "forest" }
+        "gotoDesert": { text: "the desert", keyword: "desert" }
+        // "nothing" is always implicit
+      }
     }
   ]
 
@@ -599,6 +615,12 @@
     this.character.standAt(newX, newY, newEmotion)
     this.message = newMessage
   }
+
+  Simulation.prototype.setLastTweet = function (tweetID, tweetStr) {
+    this.lastTweetID = tweetID
+    this.lastTweetStr = tweetStr
+  }
+
 
   if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
     module.exports = Simulation

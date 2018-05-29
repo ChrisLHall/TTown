@@ -39,7 +39,9 @@ function onLoginSuccessful() {
   }
 }
 
+var simulated = false
 function onLoadFinished() {
+  simulated = false
   console.log("Sim time of day: " + sim.timeOfDay)
   var date = new Date()
   console.log("Current real time: " + date)
@@ -50,10 +52,10 @@ function onLoadFinished() {
       console.log("Time to simulate")
       sim.simulate()
       console.log("New sim time: " + sim.timeOfDay)
-      console.log("Saving to kii")
-      sim.kiiSave(kii.Kii)
+      simulated = true
     } else {
       console.log("Sim currently up to date. Exiting")
+      return
     }
   } else {
     console.log("not simulating")
@@ -61,6 +63,8 @@ function onLoadFinished() {
 
   if (!doTweet) {
     console.log("skipping tweet phase")
+    sim.setLastTweet(null, null)
+    afterTweet()
   } else {
     performTweet()
   }
@@ -71,7 +75,16 @@ function performTweet() {
   tweeter.post('statuses/update', { status: sim.render(true) }, function(err, data, response) {
     console.log("Tweet posted")
     console.log(data)
+    sim.setLastTweet(data.id, data.id_str)
+    afterTweet()
   })
+}
+
+function afterTweet() {
+  if (simulated) {
+    console.log("Saving to kii")
+    sim.kiiSave(kii.Kii)
+  }
 }
 
 
