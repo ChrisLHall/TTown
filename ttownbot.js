@@ -372,6 +372,7 @@
       travelingToBiome: (this.travelingToBiome ? this.travelingToBiome.toJSON() : null),
       character: this.character.toJSON(),
       message: this.message,
+      askedQuestion: this.askedQuestion,
       lastTweetID: this.lastTweetID,
       lastTweetStr: this.lastTweetStr,
     }
@@ -400,8 +401,12 @@
       this.character = new Character()
     }
     this.message = json.message || ""
+    this.askedQuestion = json.askedQuestion || null
     this.lastTweetID = json.lastTweetID || null
     this.lastTweetStr = json.lastTweetStr || null
+
+    // stuff not included in the json
+    this.receivedAnswer = null
   }
 
   Simulation.prototype.kiiLogin = function(kiiObj, kiiSiteObj, kiiUserObj, kiiServerCreds, onLoginSuccessful) {
@@ -476,17 +481,21 @@
     this.tick++
     this.timeOfDay = this.tick % 12
     console.log("time "+ this.timeOfDay)
+
+    if (this.receivedAnswer) {
+      this.processAnswer()
+    }
     if (this.travelingToBiome) {
       if (this.timeOfDay === 10) {
         console.log("coming home")
         this.travelingToBiome = null
       }
-    } else {
+    }/* else {
       if (this.timeOfDay === 4 && Math.random() < .5) {
         console.log("traveling")
         this.travelingToBiome = new Biome(listRand(Biome.travelToTypes))
       }
-    }
+    }*/
 
     this.getCurrentBiome().simulate()
     console.log("simulated")
@@ -499,6 +508,21 @@
       return this.travelingToBiome
     }
     return this.home
+  }
+
+  Simulation.prototype.processAnswer = function() {
+    var action = this.receivedAnswer.action
+    var target = this.receivedAnswer.target
+
+    if (action === "gotoBiome") {
+      if (target) {
+        this.travelingToBiome = new Biome(target)
+      }
+    }
+    // todo more actions
+    
+    //reset answer
+    this.receivedAnswer = null
   }
 
   var CHARACTER_EMOJIS = {
@@ -523,28 +547,34 @@
     }, {
       // TODO FINISH THIS ACTION IMPLEMENTATION @@@@@@@@@@@@@@
       biome: "home",
+      timeOfDay: 3,
       pos: [1, 6],
       emotion: "normal",
       message: "Where should we go today?",
-      options: {
-        // THIS IS NOT PROMISING
-        "gotoForest": { text: "the forest", keyword: "forest" }
-        "gotoDesert": { text: "the desert", keyword: "desert" }
-        // "nothing" is always implicit
-      }
-    }
+      question: {
+        action: "gotoBiome",
+        options: [
+          { text: "the forest", keyword: "forest", target: "forest" },
+          { text: "the desert", keyword: "desert", target: "desert" },
+          { text: "stay home", keyword: "home", target: null },
+        ],
+      },
+    },
   ]
 
   Simulation.prototype.simulateCharacter = function() {
     this.message = ""
     this.character.emotion = "normal"
+    this.askedQuestion = null
     // list possible actions
     var possibleActions = []
     for (var j = 0; j < CHARACTER_ACTIONS.length; j++) {
-      // TODO
       var action = CHARACTER_ACTIONS[j]
       var possible = true
       if (action.hasOwnProperty("biome") && action.biome !== this.getCurrentBiome().type) {
+        possible = false
+      }
+      if (action.hasOwnProperty("timeOfDay") && action.timeOfDay !== this.timeOfDay) {
         possible = false
       }
       if (action.hasOwnProperty("animal")) {
@@ -578,6 +608,7 @@
     var newY = this.character.y
     var newEmotion = listRand(["normal", "happy"])
     var newMessage = ""
+    var newQuestion = null
     // move the character
     if (action.hasOwnProperty("animal")) {
       // TODO PICK A RANDOM ONE AND STAND NEXT TO IT
@@ -610,10 +641,14 @@
     if (action.hasOwnProperty("message")) {
       newMessage = action.message
     }
+    if (action.hasOwnProperty("question")) {
+      newQuestion = action.question
+    }
 
     //apply
     this.character.standAt(newX, newY, newEmotion)
     this.message = newMessage
+    this.askedQuestion = newQuestion
   }
 
   Simulation.prototype.setLastTweet = function (tweetID, tweetStr) {

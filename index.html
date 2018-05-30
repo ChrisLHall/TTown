@@ -24,6 +24,11 @@
 <input type="button" value="kii load" onclick="doKiiLoad()" />
 <br><br>
 <p id="emojimap"></p>
+<br>
+<input type="button" id="answer0" value="..." onClick="doAnswer(0)" />
+<input type="button" id="answer1" value="..." onClick="doAnswer(1)" />
+<input type="button" id="answer2" value="..." onClick="doAnswer(2)" />
+<input type="button" id="answer3" value="..." onClick="doAnswer(3)" />
 <br><br>
 <p id="rawemojimap"></p>
 <br><br>
@@ -54,6 +59,17 @@ function doSimulate() {
   sim.simulate()
   renderCurrent()
 }
+function doAnswer(idx) {
+  if (sim.askedQuestion && idx < sim.askedQuestion.options.length) {
+    var answer = { action: sim.askedQuestion.action, target: sim.askedQuestion.options[idx].target }
+    sim.receivedAnswer = answer
+  } else {
+    sim.receivedAnswer = null
+  }
+  console.log("received answer " + idx + ": " + sim.receivedAnswer)
+  // go ahead and simulate the next one
+  doSimulate()
+}
 function doToJSON() {
   tempJSON = sim.toJSON()
 }
@@ -76,6 +92,16 @@ function renderCurrent() {
   document.getElementById("map").innerText = reg
   document.getElementById("rawemojimap").innerText = rawEmo
   document.getElementById("emojimap").innerHTML = emo
+  renderButtons()
+}
+function renderButtons() {
+  for (var j = 0; j < 4; j++) {
+    var text = "..."
+    if (sim.askedQuestion && j < sim.askedQuestion.options.length) {
+      text = sim.askedQuestion.options[j].text
+    }
+    document.getElementById("answer" + j).value = text
+  }
 }
 </script>
 </body>
