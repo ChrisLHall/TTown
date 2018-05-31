@@ -1,3 +1,8 @@
+function listRand(list) { return list[Math.floor(Math.random() * list.length)] }
+function clamp(num, min, max) {
+  return Math.min(Math.max(num, min), max);
+}
+
 var Simulation = require("./ttownbot")
 var Twit = require("twit")
 var TwitterCreds = require("./TwitterCreds")()
@@ -41,6 +46,7 @@ function onLoginSuccessful() {
 }
 
 function onLoadFinished() {
+  sim.receivedAnswer = null
   if (sim.lastTweetID && sim.askedQuestion) {
     console.log("Scanning for answers to last question")
     searchForReplies(sim.lastTweetID, sim.askedQuestion, startSimulation)
@@ -54,37 +60,64 @@ function searchForReplies(lastTweetID, askedQuestion, onSearchComplete) {
     if (data.statuses) {
       console.log("Total replies: " + data.statuses.length)
       var directReplies = 0
+      var keywords = []
+      var keywordToAnswer = {}
       var countedVotes = {}
       for (var option = 0; option < askedQuestion.options.length; option++) {
-          countedVotes[askedQuestion.options[option].keyword] = []
+        keywords.push(askedQuestion.options[option].keyword)
+        keywordToAnswer[askedQuestion.options[option].keyword] = askedQuestion.options[option]
+        countedVotes[askedQuestion.options[option].keyword] = []
       }
       for (var j = 0; j < data.statuses.length; j++) {
         var status = data.statuses[j]
         var userID = status.user.id
         if (status.in_reply_to_status_id === lastTweetID) {
-          for (var key in countedVotes) {
-            if (countedVotes.hasOwnProperty(key)) {
-              // make sure they said the keyword
-              if (status.text.includes(key)) {
-                var votesList = countedVotes[key]
-                if (votesList.indexOf(userID) === -1) {
+          for (var k = 0; k < keywords.length; k++) {
+            var key = keywords[k]
+            // make sure they said the keyword
+            if (status.text.includes(key)) {
+              var userAlreadyVoted = false
+              var votesList = countedVotes[key]
+              for (var k2 = 0; k2 < keywords.length; k2++) {
+                var keyCheck = keywords[k2]
+                var votesListCheck = countedVotes[keyCheck]
+                if (votesListCheck.indexOf(userID) !== -1) {
                   // only add users who did not already vote
-                  votesList.push(userID)
+                  userAlreadyVoted = true
+                  break
                 }
-                break
               }
+              if (!userAlreadyVoted) {
+                votesList.push(userID)
+              }
+              break
             }
           }
           directReplies++
         }
       }
       console.log("Direct replies to this status: " + directReplies)
+      var mostVotes = 0
+      var mostVotedAnswers = []
       for (var key in countedVotes) {
         if (countedVotes.hasOwnProperty(key)) {
           var totalVotes = countedVotes[key].length
           console.log(key + " got votes: " + totalVotes)
+          if (totalVotes > mostVotes) {
+            mostVotes = totalVotes
+            mostVotedAnswers = [key,]
+          } else if (totalVotes === mostVotes) {
+            mostVotedAnswers.push(key)
+          }
         }
       }
+      var answer = { action: askedQuestion.action, target: askedQuestion.options[0].target }
+      if (mostVotedAnswers.length > 0) {
+        // choose any of the most voted answers
+        answer.target = keywordToAnswer[listRand(mostVotedAnswers)].target
+      }
+      console.log("Chose answer: " + answer.target)
+      sim.receivedAnswer = answer
     }
     onSearchComplete()
   })
