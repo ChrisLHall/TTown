@@ -325,7 +325,7 @@
   // day is 8am - 6pm (4 - 9)
   // sunset is 8pm (10)
   // night is 10pm thru 4am (11, 0-2)
-  function drawTopBar(isEmoji, timeOfDay) {
+  function drawTopBar(isEmoji, timeOfDay, randomEventSkyFrame) {
     var sunOptions
     var skyOptions
     var topBarItems = []
@@ -346,13 +346,18 @@
 
     for (var j = 0; j < WIDTH; j++) {
       var isSun = (j === timeOfDay)
-      topBarItems.push(listRand(isSun ? sunOptions : skyOptions))
+      var item = listRand(isSun ? sunOptions : skyOptions)
+      item = isEmoji ? WEATHER_EMOJI_SUBS[item] : item
+      if (randomEventSkyFrame && j === randomEventSkyFrame.pos) {
+        item = isEmoji ? randomEventSkyFrame.emoji : randomEventSkyFrame.text
+      }
+      topBarItems.push(item)
     }
 
     var out = ""
     for (var j = 0; j < topBarItems.length; j++) {
       var item = topBarItems[j]
-      out += isEmoji ? WEATHER_EMOJI_SUBS[item] : item
+      out += item
     }
     return out
   }
@@ -371,6 +376,7 @@
       home: this.home.toJSON(),
       travelingToBiome: (this.travelingToBiome ? this.travelingToBiome.toJSON() : null),
       character: this.character.toJSON(),
+      randomEvent: this.randomEvent,
       message: this.message,
       askedQuestion: this.askedQuestion,
       lastTweetID: this.lastTweetID,
@@ -400,6 +406,7 @@
     } else {
       this.character = new Character()
     }
+    this.randomEvent = json.randomEvent || null
     this.message = json.message || ""
     this.askedQuestion = json.askedQuestion || null
     this.lastTweetID = json.lastTweetID || null
@@ -465,11 +472,16 @@
 
   Simulation.prototype.render = function(isEmoji) {
     var outMap;
+    var randEventInfo = this.randomEvent ? RANDOM_EVENTS[this.randomEvent.type] : null
     outMap = this.getCurrentBiome().render(isEmoji)
-
+    if (randEventInfo && randEventInfo.frames) {
+      var frame = randEventInfo.frames[this.randomEvent.time]
+      outMap[frame.pos[1]][frame.pos[0]] = isEmoji ? frame.emoji : frame.text
+    }
     this.character.render(isEmoji, outMap)
 
-    var out = drawTopBar(isEmoji, this.timeOfDay) + "\n"
+    var skyFrame = (randEventInfo && randEventInfo.skyFrames) ? randEventInfo.skyFrames[this.randomEvent.time] : null
+    var out = drawTopBar(isEmoji, this.timeOfDay, skyFrame) + "\n"
     out += renderToString(outMap)
     if (this.message.length > 0) {
       out += "\n" + this.message
@@ -490,12 +502,8 @@
         console.log("coming home")
         this.travelingToBiome = null
       }
-    }/* else {
-      if (this.timeOfDay === 4 && Math.random() < .5) {
-        console.log("traveling")
-        this.travelingToBiome = new Biome(listRand(Biome.travelToTypes))
-      }
-    }*/
+    }
+    this.simulateRandomEvents()
 
     this.getCurrentBiome().simulate()
     console.log("simulated")
@@ -520,7 +528,7 @@
       }
     }
     // todo more actions
-    
+
     //reset answer
     this.receivedAnswer = null
   }
@@ -532,24 +540,31 @@
     "love": "😻",
     "scared": "🙀",
     "angry": "😾",
+    // TODO IMPLEMENT
+    "none": "",
   }
 
   var CHARACTER_ACTIONS = [
     {
       biome: "home",
-      pos: [9, 1],
-      message: "Looking into the pond",
+      // TODO IMPLEMENT RANDOM CHOICE
+      pos: [[9, 1]],
+      message: ["Looking into the pond"],
+    }, {
+      biome: "home",
+      // TODO IMPLEMENT
+      onTile: [".", "r"],
+      emotion: ["normal", "normal", "happy", "happy", "laughing", "angry"],
     }, {
       biome: "forest",
       animal: "snail",
-      emotion: "laughing",
-      message: "Aww, a snail!",
+      emotion: ["laughing"],
+      message: ["Aww, a snail!"],
     }, {
-      // TODO FINISH THIS ACTION IMPLEMENTATION @@@@@@@@@@@@@@
       biome: "home",
       timeOfDay: 3,
-      pos: [1, 6],
-      emotion: "normal",
+      pos: [[1, 6]],
+      emotion: ["normal"],
       message: "Where should we go today?",
       question: {
         action: "gotoBiome",
@@ -586,6 +601,24 @@
           if (obj.type === action.animal) {
             found = true
             break
+          }
+        }
+        if (!found) {
+          possible = false
+        }
+      }
+      if (action.hasOwnProperty("onTile")) {
+        // look for the animal
+        var found = false
+        var map = this.getCurrentBiome().map
+        for (var row = 0; row < map.length; row++) {
+          var mapRow = map[row]
+          for (var col = 0; col < mapRow.length; col++) {
+            var tile = mapRow[col]
+            if (action.onTile.indexOf(tile) > -1) {
+              found = true
+              break
+            }
           }
         }
         if (!found) {
@@ -630,16 +663,32 @@
         newX = animal.x + 1
       }
       newY = animal.y
+    } else if (action.hasOwnProperty("onTile")) {
+      var tiles = []
+      var map = this.getCurrentBiome().map
+      for (var row = 0; row < map.length; row++) {
+        var mapRow = map[row]
+        for (var col = 0; col < mapRow.length; col++) {
+          var tile = mapRow[col]
+          if (action.onTile.indexOf(tile) > -1) {
+            tiles.push([col, row])
+          }
+        }
+      }
+      var chosen = listRand(tiles)
+      newX = chosen[0]
+      newY = chosen[1]
     } else if (action.hasOwnProperty("pos")) {
-      newX = action.pos[0]
-      newY = action.pos[1]
+      var chosen = listRand(action.pos)
+      newX = chosen[0]
+      newY = chosen[1]
     }
 
     if (action.hasOwnProperty("emotion")) {
-      newEmotion = action.emotion
+      newEmotion = listRand(action.emotion)
     }
     if (action.hasOwnProperty("message")) {
-      newMessage = action.message
+      newMessage = listRand(action.message)
     }
     if (action.hasOwnProperty("question")) {
       newQuestion = action.question
@@ -656,6 +705,49 @@
     this.lastTweetStr = tweetStr
   }
 
+  var RANDOM_EVENTS = {
+    "shoppingcart": {
+      // TODO CHECK BIOMES AND SHIT FOR THESE
+      frames: [
+        //pos, letter, emoji
+        {pos: [1, 2], text: "C", emoji: "🛒"},
+        {pos: [1, 4], text: "C", emoji: "🛒"},
+        {pos: [1, 4], text: "C", emoji: "🛒"},
+        {pos: [1, 4], text: "C", emoji: "🛒"},
+        {pos: [1, 2], text: "C", emoji: "🛒"},
+      ]
+    },
+    "shootingstar": {
+      skyFrames: [
+        {pos: 9, text: "*", emoji: "🌠"},
+        {pos: 6, text: "*", emoji: "🌠"},
+        {pos: 3, text: "*", emoji: "🌠"},
+      ]
+    }
+  }
+
+  var RANDOM_EVENT_SPAWNS = ["shootingstar", "shootingstar", "shootingstar", "shoppingcart"]
+  var RANDOM_EVENT_CHANCE = .25
+
+  Simulation.prototype.simulateRandomEvents = function () {
+    if (this.randomEvent) {
+      var info = RANDOM_EVENTS[this.randomEvent.type]
+      this.randomEvent.time++
+      var numFrames = 0
+      if (info.frames) {
+        numFrames = info.frames.length
+      } else if (info.skyFrames) {
+        numFrames = info.skyFrames.length
+      }
+      if (this.randomEvent.time >= numFrames) {
+        this.randomEvent = null
+      }
+    } else {
+      if (Math.random() < RANDOM_EVENT_CHANCE) {
+        this.randomEvent = { type: listRand(RANDOM_EVENT_SPAWNS), time: 0 }
+      }
+    }
+  }
 
   if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
     module.exports = Simulation
