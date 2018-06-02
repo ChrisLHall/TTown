@@ -25,29 +25,6 @@
     return map
   }
 
-  var EMOJI_SUBS = {
-    "?": "🚫",
-    ".": "🌿",
-    //fertile dirt
-    ",": "〰",
-    "r": "🍃",
-    "t": "🌳",
-    "H": "🏡",
-    "~": "🌊",
-    // dock
-    "d": "📙",
-    // fence
-    "f": "📔",
-    // grass/pasture
-    "g": "🌾",
-    // path
-    "p": "🍪",
-    // desert
-    "s": "📒",
-    "c": "🌵",
-    "w": "☠",
-  }
-
   function renderToArray(isEmoji, map, objects) {
     console.log("starting render to array")
     var outMap = []
@@ -97,6 +74,7 @@
     return {
       x: this.x,
       y: this.y,
+      age: this.age,
       type: this.type,
     }
   }
@@ -104,11 +82,13 @@
   Animal.prototype.fromJSON = function (json) {
     this.x = json.x || 0
     this.y = json.y || 0
+    this.age = json.age || 0
     this.type = json.type || "bee"
     this.info = Animal.types[this.type]
   }
 
   Animal.prototype.simulate = function(biome) {
+    this.age++
     if (Math.random() < .9) {
       // 5 tries
       for (var j = 0; j < 5; j++) {
@@ -123,39 +103,6 @@
         }
       }
     }
-  }
-
-  Animal.types = {
-    "frog": {
-      text: "f",
-      emoji: "🐸",
-      speed: 3,
-      allowedTiles: ["~"],
-    },
-    "snail": {
-      text: "9",
-      emoji: "🐌",
-      speed: 1,
-      allowedTiles: [".", "r"],
-    },
-    "snake": {
-      text: "S",
-      emoji: "🐍",
-      speed: 2,
-      allowedTiles: ["s", "d"],
-    },
-    "turtle": {
-      text: "t",
-      emoji: "🐢",
-      speed: 1,
-      allowedTiles: [".", "r", "s", "d", "~"],
-    },
-    "bee": {
-      text: "b",
-      emoji: "🐝",
-      speed: 3,
-      allowedTiles: [".", "r", "t"],
-    },
   }
 
   var Biome = function(type) {
@@ -242,36 +189,6 @@
     var tile = this.map[y][x]
     return (allowedTiles.indexOf(tile) >= 0);
   }
-
-  Biome.types = {
-    "home": {
-      template: [
-      "???????~~~~~",
-      "???????ddd~~",
-      "pp??????~~~~",
-      "?p???????~~~",
-      "?p??????????",
-      "tpt.,,,,gggg",
-      "tHt.....gggg",
-      "ttt.,,,,gggg",
-      ],
-      tileSpawnTypes: [".", ".", ".", ".", "t", "t", "r" ],
-      animalSpawnTypes: ["snail", "snail", "snail", "bee", "bee", "frog"],
-      numAnimals: 3,
-    },
-    "forest": {
-      tileSpawnTypes: [".", ".", ".", "t", "t", "r" ],
-      animalSpawnTypes: ["snail", "snail", "bee"],
-      numAnimals: 5,
-    },
-    "desert": {
-      tileSpawnTypes: ["s", "s", "s", "d", "d", "d", "c", "c", "w"],
-      animalSpawnTypes: ["turtle", "turtle", "turtle", "snake", "bee"],
-      numAnimals: 3,
-    },
-  }
-  // pick from this list when traveling
-  Biome.travelToTypes = [ "forest", "forest", "desert" ]
 
   var Character = function() {
     this.fromJSON({})
@@ -533,49 +450,52 @@
     this.receivedAnswer = null
   }
 
-  var CHARACTER_EMOJIS = {
-    "normal": "🐱",
-    "happy": "😺",
-    "laughing": "😹",
-    "love": "😻",
-    "scared": "🙀",
-    "angry": "😾",
-    // TODO IMPLEMENT
-    "none": "",
+  Simulation.prototype.checkCanHappen = function (action) {
+    if (action.hasOwnProperty("biome") && action.biome !== this.getCurrentBiome().type) {
+      return false
+    }
+    if (action.hasOwnProperty("timeOfDay") && action.timeOfDay.indexOf(this.timeOfDay) < 0) {
+      return false
+    }
+    if (action.hasOwnProperty("chance") && Math.random() >= action.chance) {
+      // just do the dice roll now
+      return false
+    }
+    if (action.hasOwnProperty("animal")) {
+      // look for the animal
+      var found = false
+      var objects = this.getCurrentBiome().objects
+      for (var k = 0; k < objects.length; k++) {
+        var obj = objects[k]
+        if (obj.type === action.animal) {
+          found = true
+          break
+        }
+      }
+      if (!found) {
+        return false
+      }
+    }
+    if (action.hasOwnProperty("onTile")) {
+      // look for the animal
+      var found = false
+      var map = this.getCurrentBiome().map
+      for (var row = 0; row < map.length; row++) {
+        var mapRow = map[row]
+        for (var col = 0; col < mapRow.length; col++) {
+          var tile = mapRow[col]
+          if (action.onTile.indexOf(tile) > -1) {
+            found = true
+            break
+          }
+        }
+      }
+      if (!found) {
+        return false
+      }
+    }
+    return true
   }
-
-  var CHARACTER_ACTIONS = [
-    {
-      biome: "home",
-      // TODO IMPLEMENT RANDOM CHOICE
-      pos: [[9, 1]],
-      message: ["Looking into the pond"],
-    }, {
-      biome: "home",
-      // TODO IMPLEMENT
-      onTile: [".", "r"],
-      emotion: ["normal", "normal", "happy", "happy", "laughing", "angry"],
-    }, {
-      biome: "forest",
-      animal: "snail",
-      emotion: ["laughing"],
-      message: ["Aww, a snail!"],
-    }, {
-      biome: "home",
-      timeOfDay: 3,
-      pos: [[1, 6]],
-      emotion: ["normal"],
-      message: "Where should we go today?",
-      question: {
-        action: "gotoBiome",
-        options: [
-          { text: "the forest", keyword: "forest", target: "forest" },
-          { text: "the desert", keyword: "desert", target: "desert" },
-          { text: "stay home", keyword: "home", target: null },
-        ],
-      },
-    },
-  ]
 
   Simulation.prototype.simulateCharacter = function() {
     this.message = ""
@@ -585,47 +505,7 @@
     var possibleActions = []
     for (var j = 0; j < CHARACTER_ACTIONS.length; j++) {
       var action = CHARACTER_ACTIONS[j]
-      var possible = true
-      if (action.hasOwnProperty("biome") && action.biome !== this.getCurrentBiome().type) {
-        possible = false
-      }
-      if (action.hasOwnProperty("timeOfDay") && action.timeOfDay !== this.timeOfDay) {
-        possible = false
-      }
-      if (action.hasOwnProperty("animal")) {
-        // look for the animal
-        var found = false
-        var objects = this.getCurrentBiome().objects
-        for (var k = 0; k < objects.length; k++) {
-          var obj = objects[k]
-          if (obj.type === action.animal) {
-            found = true
-            break
-          }
-        }
-        if (!found) {
-          possible = false
-        }
-      }
-      if (action.hasOwnProperty("onTile")) {
-        // look for the animal
-        var found = false
-        var map = this.getCurrentBiome().map
-        for (var row = 0; row < map.length; row++) {
-          var mapRow = map[row]
-          for (var col = 0; col < mapRow.length; col++) {
-            var tile = mapRow[col]
-            if (action.onTile.indexOf(tile) > -1) {
-              found = true
-              break
-            }
-          }
-        }
-        if (!found) {
-          possible = false
-        }
-      }
-      // todo more conditions
+      var possible = this.checkCanHappen(action)
 
       if (possible) {
         possibleActions.push(action)
@@ -705,30 +585,6 @@
     this.lastTweetStr = tweetStr
   }
 
-  var RANDOM_EVENTS = {
-    "shoppingcart": {
-      // TODO CHECK BIOMES AND SHIT FOR THESE
-      frames: [
-        //pos, letter, emoji
-        {pos: [1, 2], text: "C", emoji: "🛒"},
-        {pos: [1, 4], text: "C", emoji: "🛒"},
-        {pos: [1, 4], text: "C", emoji: "🛒"},
-        {pos: [1, 4], text: "C", emoji: "🛒"},
-        {pos: [1, 2], text: "C", emoji: "🛒"},
-      ]
-    },
-    "shootingstar": {
-      skyFrames: [
-        {pos: 9, text: "*", emoji: "🌠"},
-        {pos: 6, text: "*", emoji: "🌠"},
-        {pos: 3, text: "*", emoji: "🌠"},
-      ]
-    }
-  }
-
-  var RANDOM_EVENT_SPAWNS = ["shootingstar", "shootingstar", "shootingstar", "shoppingcart"]
-  var RANDOM_EVENT_CHANCE = .25
-
   Simulation.prototype.simulateRandomEvents = function () {
     if (this.randomEvent) {
       var info = RANDOM_EVENTS[this.randomEvent.type]
@@ -743,9 +599,173 @@
         this.randomEvent = null
       }
     } else {
-      if (Math.random() < RANDOM_EVENT_CHANCE) {
-        this.randomEvent = { type: listRand(RANDOM_EVENT_SPAWNS), time: 0 }
+      // list possible actions
+      var chosenEvents = []
+      for (var eventName in RANDOM_EVENTS) {
+        if (!RANDOM_EVENTS.hasOwnProperty(eventName)) {
+          continue
+        }
+        var action = RANDOM_EVENTS[eventName]
+        var possible = this.checkCanHappen(action)
+
+        if (possible) {
+          chosenEvents.push(eventName)
+        }
       }
+      if (chosenEvents.length > 0) {
+        this.randomEvent = { type: listRand(chosenEvents), time: 0 }
+      }
+    }
+  }
+
+  var EMOJI_SUBS = {
+    "?": "🚫",
+    ".": "🌿",
+    //fertile dirt
+    ",": "〰",
+    "r": "🍃",
+    "t": "🌳",
+    "H": "🏡",
+    "~": "🌊",
+    // dock
+    "d": "📙",
+    // fence
+    "f": "📔",
+    // grass/pasture
+    "g": "🌾",
+    // path
+    "p": "🍪",
+    // desert
+    "s": "📒",
+    "c": "🌵",
+    "w": "☠",
+  }
+
+  Animal.types = {
+    "frog": {
+      text: "f",
+      emoji: "🐸",
+      speed: 3,
+      allowedTiles: ["~"],
+    },
+    "snail": {
+      text: "9",
+      emoji: "🐌",
+      speed: 1,
+      allowedTiles: [".", "r"],
+    },
+    "snake": {
+      text: "S",
+      emoji: "🐍",
+      speed: 2,
+      allowedTiles: ["s", "d"],
+    },
+    "turtle": {
+      text: "t",
+      emoji: "🐢",
+      speed: 1,
+      allowedTiles: [".", "r", "s", "d", "~"],
+    },
+    "bee": {
+      text: "b",
+      emoji: "🐝",
+      speed: 3,
+      allowedTiles: [".", "r", "t"],
+    },
+  }
+
+  Biome.types = {
+    "home": {
+      template: [
+      "???????~~~~~",
+      "???????ddd~~",
+      "pp??????~~~~",
+      "?p???????~~~",
+      "?p??????????",
+      "tpt.,,,,gggg",
+      "tHt.....gggg",
+      "ttt.,,,,gggg",
+      ],
+      tileSpawnTypes: [".", ".", ".", ".", "t", "t", "r" ],
+      animalSpawnTypes: ["snail", "snail", "snail", "bee", "bee", "frog"],
+      numAnimals: 3,
+    },
+    "forest": {
+      tileSpawnTypes: [".", ".", ".", "t", "t", "r" ],
+      animalSpawnTypes: ["snail", "snail", "bee"],
+      numAnimals: 5,
+    },
+    "desert": {
+      tileSpawnTypes: ["s", "s", "s", "d", "d", "d", "c", "c", "w"],
+      animalSpawnTypes: ["turtle", "turtle", "turtle", "snake", "bee"],
+      numAnimals: 3,
+    },
+  }
+
+  var CHARACTER_EMOJIS = {
+    "normal": "🐱",
+    "happy": "😺",
+    "laughing": "😹",
+    "love": "😻",
+    "scared": "🙀",
+    "angry": "😾",
+    // TODO IMPLEMENT
+    "none": "",
+  }
+
+  var CHARACTER_ACTIONS = [
+    {
+      biome: "home",
+      pos: [[9, 1]],
+      message: ["Looking into the pond"],
+    }, {
+      biome: "home",
+      onTile: [".", "r"],
+      emotion: ["normal", "normal", "happy", "happy", "laughing", "angry"],
+    }, {
+      biome: "forest",
+      animal: "snail",
+      emotion: ["laughing"],
+      message: ["Aww, a snail!"],
+    }, {
+      biome: "home",
+      timeOfDay: [3],
+      pos: [[1, 6]],
+      emotion: ["normal"],
+      message: "Where should we go today?",
+      question: {
+        action: "gotoBiome",
+        options: [
+          { text: "the forest", keyword: "forest", target: "forest" },
+          { text: "the desert", keyword: "desert", target: "desert" },
+          { text: "stay home", keyword: "home", target: null },
+        ],
+      },
+    },
+  ]
+
+  var RANDOM_EVENTS = {
+    "shoppingcart": {
+      biome: "home",
+      chance: .1,
+      // TODO CHECK BIOMES AND SHIT FOR THESE
+      frames: [
+        //pos, letter, emoji
+        {pos: [1, 2], text: "C", emoji: "🛒"},
+        {pos: [1, 4], text: "C", emoji: "🛒"},
+        {pos: [1, 4], text: "C", emoji: "🛒"},
+        {pos: [1, 4], text: "C", emoji: "🛒"},
+        {pos: [1, 2], text: "C", emoji: "🛒"},
+      ]
+    },
+    "shootingstar": {
+      timeOfDay: [11, 0],
+      chance: .25,
+      skyFrames: [
+        {pos: 9, text: "*", emoji: "🌠"},
+        {pos: 6, text: "*", emoji: "🌠"},
+        {pos: 3, text: "*", emoji: "🌠"},
+      ]
     }
   }
 
