@@ -162,6 +162,20 @@
   }
 
   Biome.prototype.simulate = function() {
+    // simulate animals spawning and leaving
+    if (Math.random() < Biome.ANIMAL_SPAWN_CHANCE) {
+      if (this.objects.length >= this.info.numAnimals) {
+        // remove
+        var removeIdx = Math.floor(Math.random() * this.objects.length)
+        if (this.objects[removeIdx].age >= Animal.LEAVE_MIN_AGE) {
+          this.objects.splice(removeIdx, 1)
+        }
+      } else if (this.objects.length < this.info.numAnimals) {
+        // spawn
+        this.spawnAnimals(this.info.animalSpawnTypes, 1)
+      }
+    }
+
     for (var o = 0; o < this.objects.length; o++) {
       this.objects[o].simulate(this)
     }
@@ -674,6 +688,8 @@
     },
   }
 
+  Animal.LEAVE_MIN_AGE = 3
+
   Biome.types = {
     "home": {
       template: [
@@ -702,6 +718,8 @@
     },
   }
 
+  Biome.ANIMAL_SPAWN_CHANCE = .2
+
   var CHARACTER_EMOJIS = {
     "normal": "🐱",
     "happy": "😺",
@@ -717,7 +735,7 @@
     {
       biome: "home",
       pos: [[9, 1]],
-      message: ["Looking into the pond"],
+      message: ["Looking into the pond", "", ""],
     }, {
       biome: "home",
       onTile: [".", "r"],
