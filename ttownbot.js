@@ -306,8 +306,13 @@
       var isSun = (j === timeOfDay)
       var item = rarityRand(isSun ? sunOptions : skyOptions)
       item = isEmoji ? WEATHER_EMOJI_SUBS[item] : item
-      if (randomEventSkyFrame && j === randomEventSkyFrame.pos) {
-        item = isEmoji ? randomEventSkyFrame.emoji : randomEventSkyFrame.text
+      if (randomEventSkyFrame) {
+        for (var drawIdx = 0; drawIdx < randomEventSkyFrame.length; drawIdx++) {
+          var draw = randomEventSkyFrame[drawIdx]
+          if (j === draw.pos) {
+            item = isEmoji ? draw.emoji : draw.text
+          }
+        }
       }
       topBarItems.push(item)
     }
@@ -436,7 +441,10 @@
     outMap = this.getCurrentBiome().render(isEmoji)
     if (randEventInfo && randEventInfo.frames) {
       var frame = randEventInfo.frames[this.randomEvent.time]
-      outMap[frame.pos[1]][frame.pos[0]] = isEmoji ? frame.emoji : frame.text
+      for (var drawIdx = 0; drawIdx < frame.length; drawIdx++) {
+        var draw = frame[drawIdx]
+        outMap[draw.pos[1]][draw.pos[0]] = isEmoji ? draw.emoji : draw.text
+      }
     }
     this.character.render(isEmoji, outMap)
 
@@ -695,6 +703,7 @@
     "s": "📒",
     "c": "🌵",
     "w": "☠",
+    "P": "🌴",
   }
 
   Animal.types = {
@@ -784,7 +793,7 @@
       numAnimals: 5,
     },
     "desert": {
-      tileSpawnTypes: {"s": {rarity: 1}, "d": {rarity: 2}, "c": {rarity: 3}, "w": {rarity: 5}},
+      tileSpawnTypes: {"s": {rarity: 1}, "d": {rarity: 2}, "c": {rarity: 3}, "w": {rarity: 5}, "P": {rarity: 5}},
       animalSpawnTypes: {"turtle": {rarity: 1}, "snake": {rarity: 3}, "camel": {rarity: 4}, "scorpion": {rarity: 5}},
       numAnimals: 3,
     },
@@ -844,8 +853,8 @@
       rarity: 2,
       timeOfDay: [3],
       onTile: [".", "r"],
-      emotion: ["normal"],
-      message: ["Where should we go today?"],
+      emotion: ["happy"],
+      message: ["Let's go somewhere..."],
       action: "gotoBiome",
       target: {"forest": {rarity: 1}, "desert": {rarity: 2}},
     },
@@ -861,20 +870,20 @@
       rarity: 4,
       frames: [
         //pos, letter, emoji
-        {pos: [1, 2], text: "C", emoji: "🛒"},
-        {pos: [1, 4], text: "C", emoji: "🛒"},
-        {pos: [1, 4], text: "C", emoji: "🛒"},
-        {pos: [1, 4], text: "C", emoji: "🛒"},
-        {pos: [1, 2], text: "C", emoji: "🛒"},
+        [{pos: [1, 2], text: "C", emoji: "🛒"},],
+        [{pos: [1, 4], text: "C", emoji: "🛒"},],
+        [{pos: [1, 4], text: "C", emoji: "🛒"},],
+        [{pos: [1, 4], text: "C", emoji: "🛒"},],
+        [{pos: [1, 2], text: "C", emoji: "🛒"},],
       ],
     },
     "shooting star": {
       timeOfDay: [11, 0],
       rarity: 2,
       skyFrames: [
-        {pos: 9, text: "*", emoji: "🌠"},
-        {pos: 6, text: "*", emoji: "🌠"},
-        {pos: 3, text: "*", emoji: "🌠"},
+        [{pos: 9, text: "*", emoji: "🌠"},],
+        [{pos: 6, text: "*", emoji: "🌠"},],
+        [{pos: 3, text: "*", emoji: "🌠"},],
       ],
     }
   }

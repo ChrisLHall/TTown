@@ -155,7 +155,20 @@ function startSimulation() {
 }
 
 function performTweet() {
-  tweeter.post('statuses/update', { status: sim.render(true) }, function(err, data, response) {
+  var tweet = sim.render(true)
+  // TODO after getting access to polls, do this better
+  if (sim.askedQuestion) {
+    tweet += " "
+    var options = sim.askedQuestion.options
+    for (var j = 0; j < options.length; j++) {
+      tweet += options[j].text
+      if (j < options.length - 1) {
+        tweet += ", "
+      }
+    }
+  }
+  console.log("Tweet length: " + tweet.length)
+  tweeter.post('statuses/update', { status: tweet }, function(err, data, response) {
     console.log("Tweet posted")
     console.log(data)
     sim.setLastTweet(data.id, data.id_str)
