@@ -53,7 +53,7 @@
     return map
   }
 
-  function renderToArray(isEmoji, map, objects) {
+  function renderToArray(isEmoji, map) {
     console.log("starting render to array")
     var outMap = []
     for (var row = 0; row < map.length; row++) {
@@ -66,15 +66,6 @@
       outMap.push(outMapRow)
     }
 
-    for (var o = 0; o < objects.length; o++) {
-      var obj = objects[o]
-      if (obj.y >= 0 && obj.y < map.length) {
-        var outMapRow = outMap[obj.y]
-        if (obj.x >= 0 && obj.x < outMapRow.length) {
-          outMapRow[obj.x] = isEmoji ? obj.info.emoji : obj.info.text
-        }
-      }
-    }
     console.log("rendered to array")
     return outMap
   }
@@ -114,6 +105,12 @@
     this.info = Animal.types[this.type]
   }
 
+  Animal.prototype.render = function (isEmoji, outMap) {
+    var icon = isEmoji ? this.info.emoji : this.info.text
+    var outMapRow = outMap[clamp(this.y, 0, outMap.length)]
+    outMapRow[clamp(this.x, 0, outMapRow.length)] = icon
+  }
+
   Animal.prototype.simulate = function(biome) {
     this.age++
     if (Math.random() < .9) {
@@ -132,13 +129,56 @@
     }
   }
 
+  Animal.isAnimal = function (object) {
+    return Animal.types.hasOwnProperty(object.type)
+  }
+
+  var Plant = function () {
+    this.fromJSON({})
+  }
+
+  Plant.prototype.toJSON = function () {
+    return {
+      x: this.x,
+      y: this.y,
+      age: this.age,
+      type: this.type,
+    }
+  }
+
+  Plant.prototype.fromJSON = function (json) {
+    this.x = json.x || 0
+    this.y = json.y || 0
+    this.age = json.age || 0
+    this.type = json.type || "bee"
+    this.info = Plant.types[this.type]
+  }
+
+  Plant.prototype.render = function (isEmoji, outMap) {
+    var icon = isEmoji ? this.info.emoji : this.info.text
+    if (this.age < this.info.growAge) {
+      icon = isEmoji ? this.info.sproutEmoji : this.info.sproutText
+    }
+    var outMapRow = outMap[clamp(this.y, 0, outMap.length)]
+    outMapRow[clamp(this.x, 0, outMapRow.length)] = icon
+  }
+
+  Plant.prototype.simulate = function(biome) {
+    this.age++
+  }
+
+  Plant.isPlant = function (object) {
+    return Plant.types.hasOwnProperty(object.type)
+  }
+
   var Biome = function(type) {
     console.log("creatng biome " + type)
     this.type = type
     this.info = Biome.types[type]
     this.map = initMap(this.info.tileSpawnTypes, this.info.template)
     this.objects = []
-    this.spawnAnimals(this.info.animalSpawnTypes, this.info.numAnimals)
+    this.spawnObjects(Animal, this.info.animalSpawnTypes, this.info.numAnimals)
+    this.spawnObjects(Plant, this.info.plantSpawnTypes, this.info.numPlants)
     console.log("made biome " + type)
   }
 
@@ -172,40 +212,78 @@
     }
   }
 
-  Biome.prototype.spawnAnimals = function (types, num) {
+  Biome.prototype.spawnObjects = function (objectType, types, num) {
     for (var j = 0; j < num; j++) {
       console.log("spawning " + j)
       var type = rarityRand(types)
-      var info = Animal.types[type]
+      var info = objectType.types[type]
       var pos = this.findAllowedPos(info.allowedTiles)
-      var animal = new Animal()
-      animal.fromJSON({ x: pos[0], y: pos[1], type: type, })
-      this.objects.push(animal)
+      var obj = new objectType()
+      obj.fromJSON({ x: pos[0], y: pos[1], type: type, })
+      this.objects.push(obj)
     }
   }
 
   Biome.prototype.render = function(isEmoji) {
-    return renderToArray(isEmoji, this.map, this.objects)
+    var outMap = renderToArray(isEmoji, this.map)
+    for (var j = 0; j < this.objects.length; j++) {
+      this.objects[j].render(isEmoji, outMap)
+    }
+    return outMap
   }
 
   Biome.prototype.simulate = function() {
     // simulate animals spawning and leaving
     if (Math.random() < Biome.ANIMAL_SPAWN_CHANCE) {
-      if (this.objects.length >= this.info.numAnimals) {
-        // remove
-        var removeIdx = Math.floor(Math.random() * this.objects.length)
-        if (this.objects[removeIdx].age >= Animal.LEAVE_MIN_AGE) {
+      var animals = this.listAnimals()
+      if (animals.length >= this.info.numAnimals) {
+        var remove = listRand(animals)
+        var removeIdx = this.objects.indexOf(remove)
+        if (removeIdx > -1 && remove.age >= Animal.LEAVE_MIN_AGE) {
           this.objects.splice(removeIdx, 1)
         }
-      } else if (this.objects.length < this.info.numAnimals) {
+      } else if (animals.length < this.info.numAnimals) {
         // spawn
-        this.spawnAnimals(this.info.animalSpawnTypes, 1)
+        this.spawnObjects(Animal, this.info.animalSpawnTypes, 1)
+      }
+    }
+    if (Math.random() < Biome.PLANT_SPAWN_CHANCE) {
+      var plants = this.listPlants()
+      if (plants.length >= this.info.numPlants) {
+        var remove = listRand(plants)
+        var removeIdx = this.objects.indexOf(remove)
+        if (removeIdx > -1 && remove.age >= Plant.DISAPPEAR_MIN_AGE) {
+          this.objects.splice(removeIdx, 1)
+        }
+      } else if (plants.length < this.info.numPlants) {
+        // spawn
+        this.spawnObjects(Plant, this.info.plantSpawnTypes, 1)
       }
     }
 
     for (var o = 0; o < this.objects.length; o++) {
       this.objects[o].simulate(this)
     }
+  }
+
+  Biome.prototype.listAnimals = function () {
+    var animals = []
+    for (var o = 0; o < this.objects.length; o++) {
+      if (Animal.isAnimal(this.objects[o])) {
+        animals.push(this.objects[o])
+      }
+    }
+    return animals
+  }
+
+  Biome.prototype.listPlants = function () {
+    var plants = []
+    for (var o = 0; o < this.objects.length; o++) {
+      if (Plant.isPlant(this.objects[o])) {
+        plants.push(this.objects[o])
+      }
+    }
+    return plants
   }
 
   Biome.prototype.findAllowedPos = function(allowedTiles) {
@@ -257,8 +335,8 @@
 
   Character.prototype.render = function(isEmoji, outMap) {
     var icon = isEmoji ? CHARACTER_EMOJIS[this.emotion] : "C"
-    var outMapRow = outMap[clamp(this.y, 0, HEIGHT)]
-    outMapRow[clamp(this.x, 0, WIDTH)] = icon
+    var outMapRow = outMap[clamp(this.y, 0, outMap.length)]
+    outMapRow[clamp(this.x, 0, outMapRow.length)] = icon
   }
 
   var WEATHER_EMOJI_SUBS = {
@@ -517,6 +595,14 @@
     if (event.hasOwnProperty("timeOfDay") && event.timeOfDay.indexOf(this.timeOfDay) < 0) {
       return false
     }
+    if (event.hasOwnProperty("randomEvent")
+        && (!this.randomEvent || event.randomEvent !== this.randomEvent.type)) {
+      return false
+    }
+    if (event.hasOwnProperty("randomEventTime")
+        && (!this.randomEvent || event.randomEventTime !== this.randomEvent.time)) {
+      return false
+    }
     if (event.hasOwnProperty("animal")) {
       // look for the animal
       var found = false
@@ -771,6 +857,51 @@
 
   Animal.LEAVE_MIN_AGE = 3
 
+  Plant.types = {
+    "flower": {
+      sproutText: "v",
+      sproutEmoji: "🌱",
+      text: "F",
+      emoji: "🌼",
+      growAge: 3,
+      allowedTiles: [".", "r", ","],
+    },
+    "clover": {
+      sproutText: "3",
+      sproutEmoji: "☘",
+      text: "3",
+      emoji: "☘",
+      growAge: 0,
+      allowedTiles: [".", "r"],
+    },
+    "four leaf clover": {
+      sproutText: "4",
+      sproutEmoji: "🍀",
+      text: "4",
+      emoji: "🍀",
+      growAge: 0,
+      allowedTiles: [".", "r"],
+    },
+    "white flower": {
+      sproutText: "v",
+      sproutEmoji: "🌱",
+      text: "w",
+      emoji: "💮",
+      growAge: 3,
+      allowedTiles: ["s"],
+    },
+    "mushroom": {
+      sproutText: "m",
+      sproutEmoji: "🍄",
+      text: "m",
+      emoji: "🍄",
+      growAge: 0,
+      allowedTiles: [".", "r"],
+    },
+  }
+
+  Plant.DISAPPEAR_MIN_AGE = 10
+
   Biome.types = {
     "home": {
       template: [
@@ -785,21 +916,28 @@
       ],
       tileSpawnTypes: {".": {rarity: 1}, "t": {rarity: 2}, "r": {rarity: 4} },
       animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 3}, "frog": {rarity: 3}, "fish": {rarity: 5}},
-      numAnimals: 5,
+      numAnimals: 4,
+      plantSpawnTypes: {"flower": {rarity: 2}, "clover": {rarity: 1}, "four leaf clover": {rarity: 10}},
+      numPlants: 5,
     },
     "forest": {
       tileSpawnTypes: {".": {rarity: 1}, "t": {rarity: 2}, "r": {rarity: 4} },
       animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 1}, "bear": {rarity: 5}},
       numAnimals: 5,
+      plantSpawnTypes: {"flower": {rarity: 2}, "clover": {rarity: 1}, "mushroom": {rarity: 2}},
+      numPlants: 5,
     },
     "desert": {
       tileSpawnTypes: {"s": {rarity: 1}, "d": {rarity: 2}, "c": {rarity: 3}, "w": {rarity: 5}, "P": {rarity: 5}},
       animalSpawnTypes: {"turtle": {rarity: 1}, "snake": {rarity: 3}, "camel": {rarity: 4}, "scorpion": {rarity: 5}},
-      numAnimals: 3,
+      numAnimals: 4,
+      plantSpawnTypes: {"white flower": {rarity: 1}},
+      numPlants: 1,
     },
   }
 
   Biome.ANIMAL_SPAWN_CHANCE = .2
+  Biome.PLANT_SPAWN_CHANCE = .2
 
   var CHARACTER_EMOJIS = {
     "normal": "🐱",
