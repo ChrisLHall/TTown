@@ -334,9 +334,11 @@
   }
 
   Character.prototype.render = function(isEmoji, outMap) {
-    var icon = isEmoji ? CHARACTER_EMOJIS[this.emotion] : "C"
-    var outMapRow = outMap[clamp(this.y, 0, outMap.length)]
-    outMapRow[clamp(this.x, 0, outMapRow.length)] = icon
+    if (this.emotion !== "none") {
+      var icon = isEmoji ? CHARACTER_EMOJIS[this.emotion] : "C"
+      var outMapRow = outMap[clamp(this.y, 0, outMap.length)]
+      outMapRow[clamp(this.x, 0, outMapRow.length)] = icon
+    }
   }
 
   var WEATHER_EMOJI_SUBS = {
@@ -600,16 +602,16 @@
       return false
     }
     if (event.hasOwnProperty("randomEventTime")
-        && (!this.randomEvent || event.randomEventTime !== this.randomEvent.time)) {
+        && (!this.randomEvent || event.randomEventTime.indexOf(this.randomEvent.time) < 0)) {
       return false
     }
-    if (event.hasOwnProperty("animal")) {
+    if (event.hasOwnProperty("objectType")) {
       // look for the animal
       var found = false
       var objects = this.getCurrentBiome().objects
       for (var k = 0; k < objects.length; k++) {
         var obj = objects[k]
-        if (obj.type === event.animal) {
+        if (obj.type === event.objectType) {
           found = true
           break
         }
@@ -668,26 +670,25 @@
     var newMessage = ""
     var newQuestion = null
     // move the character
-    if (charAction.hasOwnProperty("animal")) {
-      // TODO PICK A RANDOM ONE AND STAND NEXT TO IT
+    if (charAction.hasOwnProperty("objectType")) {
       var objects = this.getCurrentBiome().objects
-      var animals = []
+      var matching = []
       for (var k = 0; k < objects.length; k++) {
         var obj = objects[k]
-        if (obj.type === charAction.animal) {
-          animals.push(obj)
+        if (obj.type === charAction.objectType) {
+          matching.push(obj)
         }
       }
-      if (animals.length === 0) {
-        console.log("No animals available??? " + charAction.animal)
+      if (matching.length === 0) {
+        console.log("No matches available??? " + charAction.objectType)
       }
-      var animal = listRand(animals)
-      if (animal.x >= 1) {
-        newX = animal.x - 1
+      var obj = listRand(matching)
+      if (obj.x >= 1) {
+        newX = obj.x - 1
       } else {
-        newX = animal.x + 1
+        newX = obj.x + 1
       }
-      newY = animal.y
+      newY = obj.y
     } else if (charAction.hasOwnProperty("onTile")) {
       var tiles = []
       var map = this.getCurrentBiome().map
@@ -917,14 +918,14 @@
       tileSpawnTypes: {".": {rarity: 1}, "t": {rarity: 2}, "r": {rarity: 4} },
       animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 3}, "frog": {rarity: 3}, "fish": {rarity: 5}},
       numAnimals: 4,
-      plantSpawnTypes: {"flower": {rarity: 2}, "clover": {rarity: 1}, "four leaf clover": {rarity: 10}},
+      plantSpawnTypes: {"flower": {rarity: 2}, "clover": {rarity: 1}},
       numPlants: 5,
     },
     "forest": {
       tileSpawnTypes: {".": {rarity: 1}, "t": {rarity: 2}, "r": {rarity: 4} },
       animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 1}, "bear": {rarity: 5}},
       numAnimals: 5,
-      plantSpawnTypes: {"flower": {rarity: 2}, "clover": {rarity: 1}, "mushroom": {rarity: 2}},
+      plantSpawnTypes: {"flower": {rarity: 2}, "clover": {rarity: 1}, "mushroom": {rarity: 2}, "four leaf clover": {rarity: 10}},
       numPlants: 5,
     },
     "desert": {
@@ -946,7 +947,6 @@
     "love": "😻",
     "scared": "🙀",
     "angry": "😾",
-    // TODO IMPLEMENT
     "none": "",
   }
 
@@ -962,13 +962,6 @@
       rarity: 1,
       onTile: [".", "r"],
       emotion: ["normal", "normal", "happy", "happy", "laughing", "angry"],
-    },
-    "aww a snail": {
-      biome: "forest",
-      rarity: 3,
-      animal: "snail",
-      emotion: ["laughing"],
-      message: ["Aww, a snail!"],
     },
     "where to go": {
       biome: "home",
@@ -996,6 +989,71 @@
       action: "gotoBiome",
       target: {"forest": {rarity: 1}, "desert": {rarity: 2}},
     },
+    "asleep": {
+      biome: "home",
+      rarity: 1,
+      timeOfDay: [11, 0, 1, 2],
+      emotion: ["none"],
+      message: ["Zzz...", ""],
+    },
+    "cart": {
+      biome: "home",
+      rarity: 1,
+      randomEvent: "shopping cart",
+      pos: [[1, 3]],
+      emotion: ["scared", "normal"],
+      message: ["What's this?", "A...shopping cart...?"],
+    },
+
+    "looking around forest": {
+      biome: "forest",
+      rarity: 1,
+      onTile: [".", "r"],
+      emotion: ["normal", "normal", "happy", "happy", "laughing", "angry"],
+    },
+    "aww a snail": {
+      biome: "forest",
+      rarity: 3,
+      objectType: "snail",
+      emotion: ["laughing"],
+      message: ["Aww, a snail!"],
+    },
+    "mushroom": {
+      biome: "forest",
+      rarity: 3,
+      objectType: "mushroom",
+      emotion: ["laughing", "happy"],
+      message: [""],
+    },
+
+    "looking around desert": {
+      biome: "desert",
+      rarity: 1,
+      onTile: ["s", "d"],
+      emotion: ["normal", "normal", "happy", "scared", "scared", "angry"],
+    },
+    "scorpion": {
+      biome: "desert",
+      rarity: 5,
+      objectType: "scorpion",
+      emotion: ["normal", "scared"],
+      message: ["Gross!", "Looks dangerous...", "Bug!"],
+    },
+    "desert flower": {
+      biome: "desert",
+      rarity: 3,
+      objectType: "white flower",
+      emotion: ["happy", "laughing"],
+      message: ["All the way out here!", "...", "Pretty"],
+    },
+    "see desert snowman": {
+      biome: "desert",
+      rarity: 1,
+      randomEvent: "desert snowman",
+      randomEventTime: [0, 1],
+      pos: [[9, 5], [9, 7]],
+      message: ["What...", "Is this real?", "Frosty??"],
+    }
   }
 
   var RANDOM_EVENTS = {
@@ -1007,7 +1065,6 @@
       biome: "home",
       rarity: 4,
       frames: [
-        //pos, letter, emoji
         [{pos: [1, 2], text: "C", emoji: "🛒"},],
         [{pos: [1, 4], text: "C", emoji: "🛒"},],
         [{pos: [1, 4], text: "C", emoji: "🛒"},],
@@ -1015,6 +1072,17 @@
         [{pos: [1, 2], text: "C", emoji: "🛒"},],
       ],
     },
+
+    "desert snowman": {
+      biome: "desert",
+      rarity: 3,
+      frames: [
+        [{pos: [10, 6], text: "s", emoji: "☃"},],
+        [{pos: [10, 6], text: "s", emoji: "⛄"}, {pos: [9, 6], text: "d", emoji: "💧"},],
+        [{pos: [9, 6], text: "d", emoji: "💧"},{pos: [10, 6], text: "d", emoji: "💧"},{pos: [11, 6], text: "d", emoji: "💧"},],
+      ]
+    },
+
     "shooting star": {
       timeOfDay: [11, 0],
       rarity: 2,
@@ -1023,7 +1091,17 @@
         [{pos: 6, text: "*", emoji: "🌠"},],
         [{pos: 3, text: "*", emoji: "🌠"},],
       ],
-    }
+    },
+    "flying money": {
+      timeOfDay: [4, 5],
+      rarity: 5,
+      skyFrames: [
+        [{pos: 2, text: "m", emoji: "💸"},],
+        [{pos: 5, text: "m", emoji: "💸"},],
+        [{pos: 8, text: "m", emoji: "💸"},],
+        [{pos: 11, text: "m", emoji: "💸"},],
+      ],
+    },
   }
 
   if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
