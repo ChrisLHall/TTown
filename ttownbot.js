@@ -3,6 +3,34 @@
   function clamp(num, min, max) {
     return Math.min(Math.max(num, min), max);
   }
+  // rarity 1 is common, rarity 5 is rare...keep it between those I guess?
+  function rarityRand(srcCollection, keyList) {
+    if (typeof keyList === "undefined") {
+      keyList = []
+      for (var key in srcCollection) {
+        if (!srcCollection.hasOwnProperty(key)) {
+          continue
+        }
+        keyList.push(key)
+      }
+    }
+    var totalChanceList = []
+    var workingTotalChance = 0
+    for (var j = 0; j < keyList.length; j++) {
+      var key = keyList[j]
+      workingTotalChance += 1 / srcCollection[key].rarity
+      totalChanceList.push(workingTotalChance)
+    }
+    var rand = Math.random() * workingTotalChance
+    var chosenKey = keyList[0]
+    for (var j = 0; j < keyList.length; j++) {
+      chosenKey = keyList[j]
+      if (rand < totalChanceList[j]) {
+        break
+      }
+    }
+    return chosenKey
+  }
 
   var WIDTH = 12
   var HEIGHT = 8
@@ -16,7 +44,7 @@
       for (var col = 0; col < WIDTH; col++) {
         var tile = template ? tempStr[col] : "?";
         if (tile === "?") {
-          tile = listRand(tileTypes)
+          tile = rarityRand(tileTypes)
         }
         rowList.push(tile)
       }
@@ -40,7 +68,6 @@
 
     for (var o = 0; o < objects.length; o++) {
       var obj = objects[o]
-      console.log(obj.type)
       if (obj.y >= 0 && obj.y < map.length) {
         var outMapRow = outMap[obj.y]
         if (obj.x >= 0 && obj.x < outMapRow.length) {
@@ -148,7 +175,7 @@
   Biome.prototype.spawnAnimals = function (types, num) {
     for (var j = 0; j < num; j++) {
       console.log("spawning " + j)
-      var type = listRand(types)
+      var type = rarityRand(types)
       var info = Animal.types[type]
       var pos = this.findAllowedPos(info.allowedTiles)
       var animal = new Animal()
@@ -262,22 +289,22 @@
     var topBarItems = []
     if (timeOfDay === 3) {
       // sunrise
-      sunOptions = ["R"]
-      skyOptions = ["b", "b", "b", "t"]
+      sunOptions = {"R": {rarity: 1}}
+      skyOptions = {"b": {rarity: 1}, "t": {rarity: 3}}
     } else if (timeOfDay >= 4 && timeOfDay <= 9) {
-      sunOptions = ["S", "S", "s"]
-      skyOptions = ["b", "b", "c"]
+      sunOptions = {"S": {rarity: 1}, "s": {rarity: 2}}
+      skyOptions = {"b": {rarity: 1}, "c": {rarity: 2}}
     } else if (timeOfDay === 10) {
-      sunOptions = ["r"]
-      skyOptions = ["W", "W", "w", "w", "w", "d"]
+      sunOptions = {"r": {rarity: 1}}
+      skyOptions = {"W": {rarity: 2}, "w": {rarity: 1}, "d": {rarity: 3}}
     } else {
-      sunOptions = ["m"]
-      skyOptions = ["n", "n", "n", "t", "T", "N"]
+      sunOptions = {"m": {rarity: 1}}
+      skyOptions = {"n": {rarity: 1}, "t": {rarity: 3}, "T": {rarity: 3}, "N": {rarity: 3}}
     }
 
     for (var j = 0; j < WIDTH; j++) {
       var isSun = (j === timeOfDay)
-      var item = listRand(isSun ? sunOptions : skyOptions)
+      var item = rarityRand(isSun ? sunOptions : skyOptions)
       item = isEmoji ? WEATHER_EMOJI_SUBS[item] : item
       if (randomEventSkyFrame && j === randomEventSkyFrame.pos) {
         item = isEmoji ? randomEventSkyFrame.emoji : randomEventSkyFrame.text
@@ -310,6 +337,7 @@
       randomEvent: this.randomEvent,
       message: this.message,
       askedQuestion: this.askedQuestion,
+      pendingAction: this.pendingAction,
       lastTweetID: this.lastTweetID,
       lastTweetStr: this.lastTweetStr,
     }
@@ -340,6 +368,7 @@
     this.randomEvent = json.randomEvent || null
     this.message = json.message || ""
     this.askedQuestion = json.askedQuestion || null
+    this.pendingAction = json.pendingAction || null
     this.lastTweetID = json.lastTweetID || null
     this.lastTweetStr = json.lastTweetStr || null
 
@@ -425,9 +454,7 @@
     this.timeOfDay = this.tick % 12
     console.log("time "+ this.timeOfDay)
 
-    if (this.receivedAnswer) {
-      this.processAnswer()
-    }
+    this.maybeProcessActions()
     if (this.travelingToBiome) {
       if (this.timeOfDay === 10) {
         console.log("coming home")
@@ -449,39 +476,46 @@
     return this.home
   }
 
-  Simulation.prototype.processAnswer = function() {
-    var action = this.receivedAnswer.action
-    var target = this.receivedAnswer.target
+  Simulation.prototype.maybeProcessActions = function() {
+    if (this.receivedAnswer) {
+      var action = this.receivedAnswer.action
+      var target = this.receivedAnswer.target
 
+      this.doAction(action, target)
+    } else if (this.pendingAction) {
+      var action = this.pendingAction.action
+      var target = this.pendingAction.target
+
+      this.doAction(action, target)
+    }
+
+    this.receivedAnswer = null
+    this.pendingAction = null
+  }
+
+  Simulation.prototype.doAction = function (action, target) {
     if (action === "gotoBiome") {
       if (target) {
         this.travelingToBiome = new Biome(target)
       }
     }
     // todo more actions
-
-    //reset answer
-    this.receivedAnswer = null
   }
 
-  Simulation.prototype.checkCanHappen = function (action) {
-    if (action.hasOwnProperty("biome") && action.biome !== this.getCurrentBiome().type) {
+  Simulation.prototype.checkCanHappen = function (event) {
+    if (event.hasOwnProperty("biome") && event.biome !== this.getCurrentBiome().type) {
       return false
     }
-    if (action.hasOwnProperty("timeOfDay") && action.timeOfDay.indexOf(this.timeOfDay) < 0) {
+    if (event.hasOwnProperty("timeOfDay") && event.timeOfDay.indexOf(this.timeOfDay) < 0) {
       return false
     }
-    if (action.hasOwnProperty("chance") && Math.random() >= action.chance) {
-      // just do the dice roll now
-      return false
-    }
-    if (action.hasOwnProperty("animal")) {
+    if (event.hasOwnProperty("animal")) {
       // look for the animal
       var found = false
       var objects = this.getCurrentBiome().objects
       for (var k = 0; k < objects.length; k++) {
         var obj = objects[k]
-        if (obj.type === action.animal) {
+        if (obj.type === event.animal) {
           found = true
           break
         }
@@ -490,7 +524,7 @@
         return false
       }
     }
-    if (action.hasOwnProperty("onTile")) {
+    if (event.hasOwnProperty("onTile")) {
       // look for the animal
       var found = false
       var map = this.getCurrentBiome().map
@@ -498,7 +532,7 @@
         var mapRow = map[row]
         for (var col = 0; col < mapRow.length; col++) {
           var tile = mapRow[col]
-          if (action.onTile.indexOf(tile) > -1) {
+          if (event.onTile.indexOf(tile) > -1) {
             found = true
             break
           }
@@ -517,12 +551,15 @@
     this.askedQuestion = null
     // list possible actions
     var possibleActions = []
-    for (var j = 0; j < CHARACTER_ACTIONS.length; j++) {
-      var action = CHARACTER_ACTIONS[j]
-      var possible = this.checkCanHappen(action)
+    for (var name in CHARACTER_ACTIONS) {
+      if (!CHARACTER_ACTIONS.hasOwnProperty(name)) {
+        continue
+      }
+      var charAction = CHARACTER_ACTIONS[name]
+      var possible = this.checkCanHappen(charAction)
 
       if (possible) {
-        possibleActions.push(action)
+        possibleActions.push(name)
       }
     }
 
@@ -530,25 +567,25 @@
       console.log("no possible actions")
       return
     }
-    var action = listRand(possibleActions)
+    var charAction = CHARACTER_ACTIONS[rarityRand(CHARACTER_ACTIONS, possibleActions)]
     var newX = this.character.x
     var newY = this.character.y
     var newEmotion = listRand(["normal", "happy"])
     var newMessage = ""
     var newQuestion = null
     // move the character
-    if (action.hasOwnProperty("animal")) {
+    if (charAction.hasOwnProperty("animal")) {
       // TODO PICK A RANDOM ONE AND STAND NEXT TO IT
       var objects = this.getCurrentBiome().objects
       var animals = []
       for (var k = 0; k < objects.length; k++) {
         var obj = objects[k]
-        if (obj.type === action.animal) {
+        if (obj.type === charAction.animal) {
           animals.push(obj)
         }
       }
       if (animals.length === 0) {
-        console.log("No animals available??? " + action.animal)
+        console.log("No animals available??? " + charAction.animal)
       }
       var animal = listRand(animals)
       if (animal.x >= 1) {
@@ -557,14 +594,14 @@
         newX = animal.x + 1
       }
       newY = animal.y
-    } else if (action.hasOwnProperty("onTile")) {
+    } else if (charAction.hasOwnProperty("onTile")) {
       var tiles = []
       var map = this.getCurrentBiome().map
       for (var row = 0; row < map.length; row++) {
         var mapRow = map[row]
         for (var col = 0; col < mapRow.length; col++) {
           var tile = mapRow[col]
-          if (action.onTile.indexOf(tile) > -1) {
+          if (charAction.onTile.indexOf(tile) > -1) {
             tiles.push([col, row])
           }
         }
@@ -572,20 +609,23 @@
       var chosen = listRand(tiles)
       newX = chosen[0]
       newY = chosen[1]
-    } else if (action.hasOwnProperty("pos")) {
-      var chosen = listRand(action.pos)
+    } else if (charAction.hasOwnProperty("pos")) {
+      var chosen = listRand(charAction.pos)
       newX = chosen[0]
       newY = chosen[1]
     }
 
-    if (action.hasOwnProperty("emotion")) {
-      newEmotion = listRand(action.emotion)
+    if (charAction.hasOwnProperty("emotion")) {
+      newEmotion = listRand(charAction.emotion)
     }
-    if (action.hasOwnProperty("message")) {
-      newMessage = listRand(action.message)
+    if (charAction.hasOwnProperty("message")) {
+      newMessage = listRand(charAction.message)
     }
-    if (action.hasOwnProperty("question")) {
-      newQuestion = action.question
+    if (charAction.hasOwnProperty("question")) {
+      newQuestion = charAction.question
+    }
+    if (charAction.hasOwnProperty("action")) {
+      this.pendingAction = {"action": charAction.action, "target": rarityRand(charAction.target)}
     }
 
     //apply
@@ -608,6 +648,8 @@
         numFrames = info.frames.length
       } else if (info.skyFrames) {
         numFrames = info.skyFrames.length
+      } else if (info.duration) {
+        numFrames = info.duration
       }
       if (this.randomEvent.time >= numFrames) {
         this.randomEvent = null
@@ -627,7 +669,7 @@
         }
       }
       if (chosenEvents.length > 0) {
-        this.randomEvent = { type: listRand(chosenEvents), time: 0 }
+        this.randomEvent = { type: rarityRand(RANDOM_EVENTS, chosenEvents), time: 0 }
       }
     }
   }
@@ -686,6 +728,36 @@
       speed: 3,
       allowedTiles: [".", "r", "t"],
     },
+    "bear": {
+      text: "B",
+      emoji: "🐻",
+      speed: 2,
+      allowedTiles: [".", "r"],
+    },
+    "squirrel": {
+      text: "q",
+      emoji: "🐿",
+      speed: 3,
+      allowedTiles: [".", "r", "t"],
+    },
+    "camel": {
+      text: "C",
+      emoji: "🐫",
+      speed: 1,
+      allowedTiles: ["s", "d"],
+    },
+    "scorpion": {
+      text: "s",
+      emoji: "🦂",
+      speed: 2,
+      allowedTiles: ["s", "d"],
+    },
+    "fish": {
+      text: "f",
+      emoji: "🐟",
+      speed: 3,
+      allowedTiles: ["~"],
+    },
   }
 
   Animal.LEAVE_MIN_AGE = 3
@@ -702,18 +774,18 @@
       "tHt.....gggg",
       "ttt.,,,,gggg",
       ],
-      tileSpawnTypes: [".", ".", ".", ".", "t", "t", "r" ],
-      animalSpawnTypes: ["snail", "snail", "snail", "bee", "bee", "frog"],
-      numAnimals: 3,
+      tileSpawnTypes: {".": {rarity: 1}, "t": {rarity: 2}, "r": {rarity: 4} },
+      animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 3}, "frog": {rarity: 3}, "fish": {rarity: 5}},
+      numAnimals: 5,
     },
     "forest": {
-      tileSpawnTypes: [".", ".", ".", "t", "t", "r" ],
-      animalSpawnTypes: ["snail", "snail", "bee"],
+      tileSpawnTypes: {".": {rarity: 1}, "t": {rarity: 2}, "r": {rarity: 4} },
+      animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 1}, "bear": {rarity: 5}},
       numAnimals: 5,
     },
     "desert": {
-      tileSpawnTypes: ["s", "s", "s", "d", "d", "d", "c", "c", "w"],
-      animalSpawnTypes: ["turtle", "turtle", "turtle", "snake", "bee"],
+      tileSpawnTypes: {"s": {rarity: 1}, "d": {rarity: 2}, "c": {rarity: 3}, "w": {rarity: 5}},
+      animalSpawnTypes: {"turtle": {rarity: 1}, "snake": {rarity: 3}, "camel": {rarity: 4}, "scorpion": {rarity: 5}},
       numAnimals: 3,
     },
   }
@@ -731,26 +803,33 @@
     "none": "",
   }
 
-  var CHARACTER_ACTIONS = [
-    {
+  var CHARACTER_ACTIONS = {
+    "looking into pond": {
       biome: "home",
+      rarity: 3,
       pos: [[9, 1]],
       message: ["Looking into the pond", "", ""],
-    }, {
+    },
+    "looking around home": {
       biome: "home",
+      rarity: 1,
       onTile: [".", "r"],
       emotion: ["normal", "normal", "happy", "happy", "laughing", "angry"],
-    }, {
+    },
+    "aww a snail": {
       biome: "forest",
+      rarity: 3,
       animal: "snail",
       emotion: ["laughing"],
       message: ["Aww, a snail!"],
-    }, {
+    },
+    "where to go": {
       biome: "home",
+      rarity: 1,
       timeOfDay: [3],
       pos: [[1, 6]],
       emotion: ["normal"],
-      message: "Where should we go today?",
+      message: ["Where should we go today?"],
       question: {
         action: "gotoBiome",
         options: [
@@ -760,13 +839,26 @@
         ],
       },
     },
-  ]
+    "random excursion": {
+      biome: "home",
+      rarity: 2,
+      timeOfDay: [3],
+      onTile: [".", "r"],
+      emotion: ["normal"],
+      message: ["Where should we go today?"],
+      action: "gotoBiome",
+      target: {"forest": {rarity: 1}, "desert": {rarity: 2}},
+    },
+  }
 
   var RANDOM_EVENTS = {
-    "shoppingcart": {
+    "nothing": {
+      rarity: 1,
+      duration: 2,
+    },
+    "shopping cart": {
       biome: "home",
-      chance: .1,
-      // TODO CHECK BIOMES AND SHIT FOR THESE
+      rarity: 4,
       frames: [
         //pos, letter, emoji
         {pos: [1, 2], text: "C", emoji: "🛒"},
@@ -774,16 +866,16 @@
         {pos: [1, 4], text: "C", emoji: "🛒"},
         {pos: [1, 4], text: "C", emoji: "🛒"},
         {pos: [1, 2], text: "C", emoji: "🛒"},
-      ]
+      ],
     },
-    "shootingstar": {
+    "shooting star": {
       timeOfDay: [11, 0],
-      chance: .25,
+      rarity: 2,
       skyFrames: [
         {pos: 9, text: "*", emoji: "🌠"},
         {pos: 6, text: "*", emoji: "🌠"},
         {pos: 3, text: "*", emoji: "🌠"},
-      ]
+      ],
     }
   }
 
