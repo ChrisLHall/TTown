@@ -205,8 +205,17 @@
     if (json.objects) {
       this.objects = []
       for (var j = 0; j < json.objects.length; j++) {
-        var obj = new Animal()
-        obj.fromJSON(json.objects[j])
+        var jObj = json.objects[j]
+        var obj = null
+        if (Animal.isAnimal(jObj)) {
+          obj = new Animal()
+        } else if (Plant.isPlant(jObj)) {
+          obj = new Plant()
+        } else {
+          // todo collectibles n stuff
+          continue
+        }
+        obj.fromJSON(jObj)
         this.objects.push(obj)
       }
     }
