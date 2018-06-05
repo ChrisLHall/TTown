@@ -3,6 +3,18 @@
   function clamp(num, min, max) {
     return Math.min(Math.max(num, min), max);
   }
+  function generateIDNum() {
+    return Math.floor(10000000 * (1 + Math.random()))
+  }
+  function filterList(list, filterFunc) {
+    var result = []
+    for (var j = 0; j < list.length; j++) {
+      if (filterFunc(list[j])) {
+        result.push(list[j])
+      }
+    }
+    return result
+  }
   // rarity 1 is common, rarity 5 is rare...keep it between those I guess?
   function rarityRand(srcCollection, keyList) {
     if (typeof keyList === "undefined") {
@@ -90,18 +102,22 @@
 
   Animal.prototype.toJSON = function () {
     return {
+      id: this.id,
       x: this.x,
       y: this.y,
       age: this.age,
       type: this.type,
+      permanent: this.permanent,
     }
   }
 
   Animal.prototype.fromJSON = function (json) {
+    this.id = json.id || generateIDNum()
     this.x = json.x || 0
     this.y = json.y || 0
     this.age = json.age || 0
     this.type = json.type || "bee"
+    this.permanent = json.permanent || false
     this.info = Animal.types[this.type]
   }
 
@@ -139,18 +155,22 @@
 
   Plant.prototype.toJSON = function () {
     return {
+      id: this.id,
       x: this.x,
       y: this.y,
       age: this.age,
       type: this.type,
+      permanent: this.permanent,
     }
   }
 
   Plant.prototype.fromJSON = function (json) {
+    this.id = json.id || generateIDNum()
     this.x = json.x || 0
     this.y = json.y || 0
     this.age = json.age || 0
-    this.type = json.type || "bee"
+    this.type = json.type || "clover"
+    this.permanent = json.permanent || false
     this.info = Plant.types[this.type]
   }
 
@@ -169,6 +189,45 @@
 
   Plant.isPlant = function (object) {
     return Plant.types.hasOwnProperty(object.type)
+  }
+
+  var Item = function () {
+    this.fromJSON({})
+  }
+
+  Item.prototype.toJSON = function () {
+    return {
+      id: this.id,
+      x: this.x,
+      y: this.y,
+      age: this.age,
+      type: this.type,
+      permanent: this.permanent,
+    }
+  }
+
+  Item.prototype.fromJSON = function (json) {
+    this.id = json.id || generateIDNum()
+    this.x = json.x || 0
+    this.y = json.y || 0
+    this.age = json.age || 0
+    this.type = json.type || "clover"
+    this.permanent = json.permanent || false
+    this.info = Plant.types[this.type]
+  }
+
+  Item.prototype.render = function (isEmoji, outMap) {
+    var icon = isEmoji ? this.info.emoji : this.info.text
+    var outMapRow = outMap[clamp(this.y, 0, outMap.length)]
+    outMapRow[clamp(this.x, 0, outMapRow.length)] = icon
+  }
+
+  Item.prototype.simulate = function(biome) {
+    this.age++
+  }
+
+  Item.isItem = function (object) {
+    return Item.types.hasOwnProperty(object.type)
   }
 
   var Biome = function(type) {
@@ -211,8 +270,9 @@
           obj = new Animal()
         } else if (Plant.isPlant(jObj)) {
           obj = new Plant()
+        } else if (Item.isItem(jObj)) {
+          obj = new Item()
         } else {
-          // todo collectibles n stuff
           continue
         }
         obj.fromJSON(jObj)
@@ -228,7 +288,7 @@
       var info = objectType.types[type]
       var pos = this.findAllowedPos(info.allowedTiles)
       var obj = new objectType()
-      obj.fromJSON({ x: pos[0], y: pos[1], type: type, })
+      obj.fromJSON({ x: pos.x, y: pos.y, type: type, })
       this.objects.push(obj)
     }
   }
@@ -244,7 +304,7 @@
   Biome.prototype.simulate = function() {
     // simulate animals spawning and leaving
     if (Math.random() < Biome.ANIMAL_SPAWN_CHANCE) {
-      var animals = this.listAnimals()
+      var animals = this.listAnimals(false)
       if (animals.length >= this.info.numAnimals) {
         var remove = listRand(animals)
         var removeIdx = this.objects.indexOf(remove)
@@ -257,7 +317,7 @@
       }
     }
     if (Math.random() < Biome.PLANT_SPAWN_CHANCE) {
-      var plants = this.listPlants()
+      var plants = this.listPlants(false)
       if (plants.length >= this.info.numPlants) {
         var remove = listRand(plants)
         var removeIdx = this.objects.indexOf(remove)
@@ -275,24 +335,12 @@
     }
   }
 
-  Biome.prototype.listAnimals = function () {
-    var animals = []
-    for (var o = 0; o < this.objects.length; o++) {
-      if (Animal.isAnimal(this.objects[o])) {
-        animals.push(this.objects[o])
-      }
-    }
-    return animals
+  Biome.prototype.listAnimals = function (includePermanent) {
+    return filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && Animal.isAnimal(item)})
   }
 
-  Biome.prototype.listPlants = function () {
-    var plants = []
-    for (var o = 0; o < this.objects.length; o++) {
-      if (Plant.isPlant(this.objects[o])) {
-        plants.push(this.objects[o])
-      }
-    }
-    return plants
+  Biome.prototype.listPlants = function (includePermanent) {
+    return filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && Plant.isPlant(item)})
   }
 
   Biome.prototype.findAllowedPos = function(allowedTiles) {
@@ -532,7 +580,7 @@
       var frame = randEventInfo.frames[this.randomEvent.time]
       for (var drawIdx = 0; drawIdx < frame.length; drawIdx++) {
         var draw = frame[drawIdx]
-        outMap[draw.pos[1]][draw.pos[0]] = isEmoji ? draw.emoji : draw.text
+        outMap[draw.pos.y][draw.pos.x] = isEmoji ? draw.emoji : draw.text
       }
     }
     this.character.render(isEmoji, outMap)
@@ -706,17 +754,17 @@
         for (var col = 0; col < mapRow.length; col++) {
           var tile = mapRow[col]
           if (charAction.onTile.indexOf(tile) > -1) {
-            tiles.push([col, row])
+            tiles.push({x: col, y: row})
           }
         }
       }
       var chosen = listRand(tiles)
-      newX = chosen[0]
-      newY = chosen[1]
+      newX = chosen.x
+      newY = chosen.y
     } else if (charAction.hasOwnProperty("pos")) {
       var chosen = listRand(charAction.pos)
-      newX = chosen[0]
-      newY = chosen[1]
+      newX = chosen.x
+      newY = chosen.y
     }
 
     if (charAction.hasOwnProperty("emotion")) {
@@ -912,6 +960,13 @@
 
   Plant.DISAPPEAR_MIN_AGE = 10
 
+  Item.types = {
+    "nut": {
+      text: "n",
+      emoji: "🌰",
+    },
+  }
+
   Biome.types = {
     "home": {
       template: [
@@ -963,7 +1018,7 @@
     "looking into pond": {
       biome: "home",
       rarity: 3,
-      pos: [[9, 1]],
+      pos: [{x: 9, y: 1}],
       message: ["Looking into the pond", "", ""],
     },
     "looking around home": {
@@ -976,7 +1031,7 @@
       biome: "home",
       rarity: 1,
       timeOfDay: [3],
-      pos: [[1, 6]],
+      pos: [{x: 1, y: 6}],
       emotion: ["normal"],
       message: ["Where should we go today?"],
       question: {
@@ -1009,7 +1064,7 @@
       biome: "home",
       rarity: 1,
       randomEvent: "shopping cart",
-      pos: [[1, 3]],
+      pos: [{x: 1, y: 3}],
       emotion: ["scared", "normal"],
       message: ["What's this?", "A...shopping cart...?"],
     },
@@ -1060,7 +1115,7 @@
       rarity: 1,
       randomEvent: "desert snowman",
       randomEventTime: [0, 1],
-      pos: [[9, 5], [9, 7]],
+      pos: [{x: 9, y: 5}, {x: 9, y: 7}],
       message: ["What...", "Is this real?", "Frosty??"],
     }
   }
@@ -1074,11 +1129,11 @@
       biome: "home",
       rarity: 4,
       frames: [
-        [{pos: [1, 2], text: "C", emoji: "🛒"},],
-        [{pos: [1, 4], text: "C", emoji: "🛒"},],
-        [{pos: [1, 4], text: "C", emoji: "🛒"},],
-        [{pos: [1, 4], text: "C", emoji: "🛒"},],
-        [{pos: [1, 2], text: "C", emoji: "🛒"},],
+        [{pos: {x: 1, y: 2}, text: "C", emoji: "🛒"},],
+        [{pos: {x: 1, y: 4}, text: "C", emoji: "🛒"},],
+        [{pos: {x: 1, y: 4}, text: "C", emoji: "🛒"},],
+        [{pos: {x: 1, y: 4}, text: "C", emoji: "🛒"},],
+        [{pos: {x: 1, y: 2}, text: "C", emoji: "🛒"},],
       ],
     },
 
@@ -1086,9 +1141,9 @@
       biome: "desert",
       rarity: 3,
       frames: [
-        [{pos: [10, 6], text: "s", emoji: "☃"},],
-        [{pos: [10, 6], text: "s", emoji: "⛄"}, {pos: [9, 6], text: "d", emoji: "💧"},],
-        [{pos: [9, 6], text: "d", emoji: "💧"},{pos: [10, 6], text: "d", emoji: "💧"},{pos: [11, 6], text: "d", emoji: "💧"},],
+        [{pos: {x: 10, y: 6}, text: "s", emoji: "☃"},],
+        [{pos: {x: 10, y: 6}, text: "s", emoji: "⛄"}, {pos: [9, 6], text: "d", emoji: "💧"},],
+        [{pos: {x: 9, y: 6}, text: "d", emoji: "💧"},{pos: [10, 6], text: "d", emoji: "💧"},{pos: [11, 6], text: "d", emoji: "💧"},],
       ]
     },
 
