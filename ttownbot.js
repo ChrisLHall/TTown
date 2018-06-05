@@ -350,13 +350,13 @@
       for (var c = 0; c < mapRow.length; c++) {
         var tile = mapRow[c]
         if (allowedTiles.indexOf(tile) >= 0) {
-          available.push([c, r])
+          available.push({x: c, y: r})
         }
       }
     }
     if (available.length === 0) {
       console.log("no available positions")
-      return [0, 0]
+      return {x: 0, y: 0}
     }
     return listRand(available)
   }
@@ -604,6 +604,7 @@
       if (this.timeOfDay === 10) {
         console.log("coming home")
         this.travelingToBiome = null
+        this.randomEvent = null
       }
     }
     this.simulateRandomEvents()
@@ -640,8 +641,13 @@
 
   Simulation.prototype.doAction = function (action, target) {
     if (action === "gotoBiome") {
-      if (target) {
+      if (target && !this.travelingToBiome) {
         this.travelingToBiome = new Biome(target)
+        // stop random event
+        this.randomEvent = null
+      } else if (!target && this.travelingToBiome) {
+        this.travelingToBiome = null
+        this.randomEvent = null
       }
     }
     // todo more actions
@@ -698,6 +704,61 @@
     return true
   }
 
+  Simulation.prototype.findPosFor = function (event) {
+    if (event.hasOwnProperty("pos")) {
+      return listRand(event.pos)
+    } else if (event.hasOwnProperty("objectType")) {
+      var objects = this.getCurrentBiome().objects
+      var matching = []
+      for (var k = 0; k < objects.length; k++) {
+        var obj = objects[k]
+        if (obj.type === event.objectType) {
+          matching.push(obj)
+        }
+      }
+      if (matching.length === 0) {
+        console.log("No matches available??? " + event.objectType)
+        return {x: 0, y: 0}
+      }
+      var obj = listRand(matching)
+      var options = []
+      if (obj.x >= 1) {
+        options.push({x: obj.x - 1, y: obj.y})
+      }
+      if (obj.x <= WIDTH - 2) {
+        options.push({x: obj.x + 1, y: obj.y})
+      }
+      if (obj.y >= 1) {
+        options.push({x: obj.x, y: obj.y - 1})
+      }
+      if (obj.y <= HEIGHT - 2) {
+        options.push({x: obj.x, y: obj.y + 1})
+      }
+      var chosen = listRand(options)
+      return {x: chosen.x, y: chosen.y}
+    } else if (event.hasOwnProperty("onTile")) {
+      var tiles = []
+      var map = this.getCurrentBiome().map
+      for (var row = 0; row < map.length; row++) {
+        var mapRow = map[row]
+        for (var col = 0; col < mapRow.length; col++) {
+          var tile = mapRow[col]
+          if (event.onTile.indexOf(tile) > -1) {
+            tiles.push({x: col, y: row})
+          }
+        }
+      }
+
+      if (tiles.length === 0) {
+        console.log("No tiles available??? " + event.onTile)
+        return {x: 0, y: 0}
+      }
+      var chosen = listRand(tiles)
+      return {x: chosen.x, y: chosen.y}
+    }
+    return null
+  }
+
   Simulation.prototype.simulateCharacter = function() {
     this.message = ""
     this.character.emotion = "normal"
@@ -726,45 +787,10 @@
     var newEmotion = listRand(["normal", "happy"])
     var newMessage = ""
     var newQuestion = null
-    // move the character
-    if (charAction.hasOwnProperty("objectType")) {
-      var objects = this.getCurrentBiome().objects
-      var matching = []
-      for (var k = 0; k < objects.length; k++) {
-        var obj = objects[k]
-        if (obj.type === charAction.objectType) {
-          matching.push(obj)
-        }
-      }
-      if (matching.length === 0) {
-        console.log("No matches available??? " + charAction.objectType)
-      }
-      var obj = listRand(matching)
-      if (obj.x >= 1) {
-        newX = obj.x - 1
-      } else {
-        newX = obj.x + 1
-      }
-      newY = obj.y
-    } else if (charAction.hasOwnProperty("onTile")) {
-      var tiles = []
-      var map = this.getCurrentBiome().map
-      for (var row = 0; row < map.length; row++) {
-        var mapRow = map[row]
-        for (var col = 0; col < mapRow.length; col++) {
-          var tile = mapRow[col]
-          if (charAction.onTile.indexOf(tile) > -1) {
-            tiles.push({x: col, y: row})
-          }
-        }
-      }
-      var chosen = listRand(tiles)
-      newX = chosen.x
-      newY = chosen.y
-    } else if (charAction.hasOwnProperty("pos")) {
-      var chosen = listRand(charAction.pos)
-      newX = chosen.x
-      newY = chosen.y
+    var pos = this.findPosFor(charAction)
+    if (pos) {
+      newX = pos.x
+      newY = pos.y
     }
 
     if (charAction.hasOwnProperty("emotion")) {
@@ -1030,7 +1056,7 @@
     "where to go": {
       biome: "home",
       rarity: 1,
-      timeOfDay: [3],
+      timeOfDay: [4],
       pos: [{x: 1, y: 6}],
       emotion: ["normal"],
       message: ["Where should we go today?"],
@@ -1046,7 +1072,7 @@
     "random excursion": {
       biome: "home",
       rarity: 2,
-      timeOfDay: [3],
+      timeOfDay: [4],
       onTile: [".", "r"],
       emotion: ["happy"],
       message: ["Let's go somewhere..."],
@@ -1142,8 +1168,8 @@
       rarity: 3,
       frames: [
         [{pos: {x: 10, y: 6}, text: "s", emoji: "☃"},],
-        [{pos: {x: 10, y: 6}, text: "s", emoji: "⛄"}, {pos: [9, 6], text: "d", emoji: "💧"},],
-        [{pos: {x: 9, y: 6}, text: "d", emoji: "💧"},{pos: [10, 6], text: "d", emoji: "💧"},{pos: [11, 6], text: "d", emoji: "💧"},],
+        [{pos: {x: 10, y: 6}, text: "s", emoji: "⛄"}, {pos: {x: 9, y: 6}, text: "d", emoji: "💧"},],
+        [{pos: {x: 9, y: 6}, text: "d", emoji: "💧"},{pos: {x: 10, y: 6}, text: "d", emoji: "💧"},{pos: {x: 11, y: 6}, text: "d", emoji: "💧"},],
       ]
     },
 
