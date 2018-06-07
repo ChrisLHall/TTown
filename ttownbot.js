@@ -1079,6 +1079,18 @@
       action: "gotoBiome",
       target: {"forest": {rarity: 1}, "desert": {rarity: 2}},
     },
+    // TODO FINISH AND IMPLEMENT
+    "random plant": {
+      biome: "home",
+      rarity: 2,
+      onTile: [".", "r"],
+      emotion: ["happy"],
+      message: ["I want to plant something!"],
+      action: "spawn",
+      // TODO spawnAtHome
+      // TODO make exclusive crops
+      target: {"white flower": {rarity: 1}, "mushroom": {rarity: 2}},
+    },
     "asleep": {
       biome: "home",
       rarity: 1,
