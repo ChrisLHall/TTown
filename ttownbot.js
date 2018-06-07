@@ -96,6 +96,17 @@
     return out
   }
 
+  function getClassForType(type) {
+    if (Animal.isAnimal(type)) {
+      return Animal
+    } else if (Plant.isPlant(type)) {
+      return Plant
+    } else if (Item.isItem(type)) {
+      return Item
+    }
+    return null
+  }
+
   var Animal = function () {
     this.fromJSON({})
   }
@@ -145,8 +156,8 @@
     }
   }
 
-  Animal.isAnimal = function (object) {
-    return Animal.types.hasOwnProperty(object.type)
+  Animal.isAnimal = function (type) {
+    return Animal.types.hasOwnProperty(type)
   }
 
   var Plant = function () {
@@ -187,8 +198,8 @@
     this.age++
   }
 
-  Plant.isPlant = function (object) {
-    return Plant.types.hasOwnProperty(object.type)
+  Plant.isPlant = function (type) {
+    return Plant.types.hasOwnProperty(type)
   }
 
   var Item = function () {
@@ -226,8 +237,8 @@
     this.age++
   }
 
-  Item.isItem = function (object) {
-    return Item.types.hasOwnProperty(object.type)
+  Item.isItem = function (type) {
+    return Item.types.hasOwnProperty(type)
   }
 
   var Biome = function(type) {
@@ -236,8 +247,8 @@
     this.info = Biome.types[type]
     this.map = initMap(this.info.tileSpawnTypes, this.info.template)
     this.objects = []
-    this.spawnObjects(Animal, this.info.animalSpawnTypes, this.info.numAnimals)
-    this.spawnObjects(Plant, this.info.plantSpawnTypes, this.info.numPlants)
+    this.spawnObjects(this.info.animalSpawnTypes, this.info.numAnimals)
+    this.spawnObjects(this.info.plantSpawnTypes, this.info.numPlants)
     console.log("made biome " + type)
   }
 
@@ -265,30 +276,27 @@
       this.objects = []
       for (var j = 0; j < json.objects.length; j++) {
         var jObj = json.objects[j]
-        var obj = null
-        if (Animal.isAnimal(jObj)) {
-          obj = new Animal()
-        } else if (Plant.isPlant(jObj)) {
-          obj = new Plant()
-        } else if (Item.isItem(jObj)) {
-          obj = new Item()
-        } else {
+        var ObjClass = getClassForType(jObj.type)
+        if (!objClass) {
           continue
         }
+        var obj = new ObjClass()
         obj.fromJSON(jObj)
         this.objects.push(obj)
       }
     }
   }
 
-  Biome.prototype.spawnObjects = function (objectType, types, num) {
+  Biome.prototype.spawnObjects = function (types, num, permanent) {
+    permanent = permanent || false
     for (var j = 0; j < num; j++) {
       console.log("spawning " + j)
       var type = rarityRand(types)
-      var info = objectType.types[type]
+      var ObjClass = getClassForType(type)
+      var info = ObjClass.types[type]
       var pos = this.findAllowedPos(info.allowedTiles)
-      var obj = new objectType()
-      obj.fromJSON({ x: pos.x, y: pos.y, type: type, })
+      var obj = new ObjClass()
+      obj.fromJSON({ x: pos.x, y: pos.y, type: type, permanent: permanent })
       this.objects.push(obj)
     }
   }
@@ -313,7 +321,7 @@
         }
       } else if (animals.length < this.info.numAnimals) {
         // spawn
-        this.spawnObjects(Animal, this.info.animalSpawnTypes, 1)
+        this.spawnObjects(this.info.animalSpawnTypes, 1)
       }
     }
     if (Math.random() < Biome.PLANT_SPAWN_CHANCE) {
@@ -326,7 +334,7 @@
         }
       } else if (plants.length < this.info.numPlants) {
         // spawn
-        this.spawnObjects(Plant, this.info.plantSpawnTypes, 1)
+        this.spawnObjects(this.info.plantSpawnTypes, 1)
       }
     }
 
@@ -335,12 +343,32 @@
     }
   }
 
+  // TODO TEST FOR SUREEEEE
+  Biome.prototype.remove = function (type, numToRemove, includePermanent) {
+    var matching = filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && item.type === type})
+    for (var j = 0; matching.length > 0 && j < numToRemove; j++) {
+      var remove = listRand(matching)
+      var removeMatchingIdx = matching.indexOf(remove)
+      if (removeMatchingIdx > -1) {
+        matching.splice(removeMatchingIdx, 1)
+      }
+      var removeObjectsIdx = this.objects.indexOf(remove)
+      if (removeObjectsIdx > -1) {
+        this.objects.splice(removeObjectsIdx, 1)
+      }
+    }
+  }
+
   Biome.prototype.listAnimals = function (includePermanent) {
-    return filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && Animal.isAnimal(item)})
+    return filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && Animal.isAnimal(item.type)})
   }
 
   Biome.prototype.listPlants = function (includePermanent) {
-    return filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && Plant.isPlant(item)})
+    return filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && Plant.isPlant(item.type)})
+  }
+
+  Biome.prototype.listItems = function (includePermanent) {
+    return filterList(this.objects, function (item) { return (!item.permanent || includePermanent) && Item.isItem(item.type)})
   }
 
   Biome.prototype.findAllowedPos = function(allowedTiles) {
@@ -364,6 +392,16 @@
   Biome.prototype.isAllowedPos = function(allowedTiles, x, y) {
     var tile = this.map[y][x]
     return (allowedTiles.indexOf(tile) >= 0);
+  }
+
+  Biome.prototype.isEmpty = function(x, y) {
+    for (var j = 0; j < this.objects.length; j++) {
+      var obj = this.objects[j]
+      if (obj.x === x && obj.y === y) {
+        return false
+      }
+    }
+    return true
   }
 
   var Character = function() {
@@ -640,6 +678,8 @@
   }
 
   Simulation.prototype.doAction = function (action, target) {
+    var targetRarity = {}
+    targetRarity[target] = {rarity: 1}
     if (action === "gotoBiome") {
       if (target && !this.travelingToBiome) {
         this.travelingToBiome = new Biome(target)
@@ -649,6 +689,13 @@
         this.travelingToBiome = null
         this.randomEvent = null
       }
+    } else if (action === "spawn") {
+      var biome = this.getCurrentBiome().spawnObjects(targetRarity, 1, true)
+    } else if (action === "moveToHome") {
+      this.getCurrentBiome().remove(target, 1, true)
+      this.home.spawnObjects(target, 1, true)
+    } else if (action === "remove") {
+      this.getCurrentBiome().remove(targetRarity, 1, true)
     }
     // todo more actions
   }
@@ -684,7 +731,6 @@
       }
     }
     if (event.hasOwnProperty("onTile")) {
-      // look for the animal
       var found = false
       var map = this.getCurrentBiome().map
       for (var row = 0; row < map.length; row++) {
@@ -692,6 +738,23 @@
         for (var col = 0; col < mapRow.length; col++) {
           var tile = mapRow[col]
           if (event.onTile.indexOf(tile) > -1) {
+            found = true
+            break
+          }
+        }
+      }
+      if (!found) {
+        return false
+      }
+    }
+    if (event.hasOwnProperty("emptyTile")) {
+      var found = false
+      var map = this.getCurrentBiome().map
+      for (var row = 0; row < map.length; row++) {
+        var mapRow = map[row]
+        for (var col = 0; col < mapRow.length; col++) {
+          var tile = mapRow[col]
+          if (this.getCurrentBiome().isEmpty(col, row) && event.emptyTile.indexOf(tile) > -1) {
             found = true
             break
           }
@@ -753,8 +816,25 @@
         console.log("No tiles available??? " + event.onTile)
         return {x: 0, y: 0}
       }
-      var chosen = listRand(tiles)
-      return {x: chosen.x, y: chosen.y}
+      return listRand(tiles)
+    } else if (event.hasOwnProperty("emptyTile")) {
+      var tiles = []
+      var map = this.getCurrentBiome().map
+      for (var row = 0; row < map.length; row++) {
+        var mapRow = map[row]
+        for (var col = 0; col < mapRow.length; col++) {
+          var tile = mapRow[col]
+          if (this.getCurrentBiome().isEmpty(col, row) && event.emptyTile.indexOf(tile) > -1) {
+            tiles.push({x: col, y: row})
+          }
+        }
+      }
+
+      if (tiles.length === 0) {
+        console.log("No empty tiles available??? " + event.emptyTile)
+        return {x: 0, y: 0}
+      }
+      return listRand(tiles)
     }
     return null
   }
@@ -982,6 +1062,38 @@
       growAge: 0,
       allowedTiles: [".", "r"],
     },
+    "eggplant": {
+      sproutText: "v",
+      sproutEmoji: "🌱",
+      text: "E",
+      emoji: "🍆",
+      growAge: 6,
+      allowedTiles: [","],
+    },
+    "chili": {
+      sproutText: "v",
+      sproutEmoji: "🌱",
+      text: "C",
+      emoji: "🌶",
+      growAge: 6,
+      allowedTiles: [","],
+    },
+    "corn": {
+      sproutText: "v",
+      sproutEmoji: "🌱",
+      text: "O",
+      emoji: "🌽",
+      growAge: 6,
+      allowedTiles: [","],
+    },
+    "carrot": {
+      sproutText: "v",
+      sproutEmoji: "🌱",
+      text: "V",
+      emoji: "🥕",
+      growAge: 6,
+      allowedTiles: [","],
+    },
   }
 
   Plant.DISAPPEAR_MIN_AGE = 10
@@ -1080,16 +1192,16 @@
       target: {"forest": {rarity: 1}, "desert": {rarity: 2}},
     },
     // TODO FINISH AND IMPLEMENT
-    "random plant": {
+    "random crop": {
       biome: "home",
       rarity: 2,
-      onTile: [".", "r"],
-      emotion: ["happy"],
+      emptyTile: [","],
+      emotion: ["normal"],
       message: ["I want to plant something!"],
       action: "spawn",
-      // TODO spawnAtHome
-      // TODO make exclusive crops
-      target: {"white flower": {rarity: 1}, "mushroom": {rarity: 2}},
+      // TODO spawnAtHome - make it remove shit
+      // TODO "remove" action IS DONE BUT NEEDS TESTING / AN ACTION
+      target: {"corn": {rarity: 1}, "carrot": {rarity: 2}, "eggplant": {rarity: 2}, "chili": {rarity: 3}},
     },
     "asleep": {
       biome: "home",
