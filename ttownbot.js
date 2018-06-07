@@ -1183,7 +1183,7 @@
     },
     "random excursion": {
       biome: "home",
-      rarity: 2,
+      rarity: 1,
       timeOfDay: [4],
       onTile: [".", "r"],
       emotion: ["happy"],
@@ -1212,7 +1212,7 @@
     },
     "cart": {
       biome: "home",
-      rarity: 1,
+      rarity: 2,
       randomEvent: "shopping cart",
       pos: [{x: 1, y: 3}],
       emotion: ["scared", "normal"],
