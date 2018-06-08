@@ -718,10 +718,14 @@
     if (event.hasOwnProperty("objectType")) {
       // look for the animal
       var found = false
+      var minAge = 0
+      if (event.hasOwnProperty("minAge")) {
+        minAge = event.minAge
+      }
       var objects = this.getCurrentBiome().objects
       for (var k = 0; k < objects.length; k++) {
         var obj = objects[k]
-        if (obj.type === event.objectType) {
+        if (obj.type === event.objectType && obj.age >= minAge) {
           found = true
           break
         }
@@ -771,11 +775,15 @@
     if (event.hasOwnProperty("pos")) {
       return listRand(event.pos)
     } else if (event.hasOwnProperty("objectType")) {
+      var minAge = 0
+      if (event.hasOwnProperty("minAge")) {
+        minAge = event.minAge
+      }
       var objects = this.getCurrentBiome().objects
       var matching = []
       for (var k = 0; k < objects.length; k++) {
         var obj = objects[k]
-        if (obj.type === event.objectType) {
+        if (obj.type === event.objectType && obj.age >= minAge) {
           matching.push(obj)
         }
       }
@@ -1067,7 +1075,7 @@
       sproutEmoji: "🌱",
       text: "E",
       emoji: "🍆",
-      growAge: 6,
+      growAge: 12,
       allowedTiles: [","],
     },
     "chili": {
@@ -1075,7 +1083,7 @@
       sproutEmoji: "🌱",
       text: "C",
       emoji: "🌶",
-      growAge: 6,
+      growAge: 12,
       allowedTiles: [","],
     },
     "corn": {
@@ -1083,7 +1091,7 @@
       sproutEmoji: "🌱",
       text: "O",
       emoji: "🌽",
-      growAge: 6,
+      growAge: 12,
       allowedTiles: [","],
     },
     "carrot": {
@@ -1091,7 +1099,7 @@
       sproutEmoji: "🌱",
       text: "V",
       emoji: "🥕",
-      growAge: 6,
+      growAge: 12,
       allowedTiles: [","],
     },
   }
@@ -1199,9 +1207,19 @@
       emotion: ["normal"],
       message: ["I want to plant something!"],
       action: "spawn",
-      // TODO spawnAtHome - make it remove shit
+      // TODO moveToHome - make it remove shit
       // TODO "remove" action IS DONE BUT NEEDS TESTING / AN ACTION
       target: {"corn": {rarity: 1}, "carrot": {rarity: 2}, "eggplant": {rarity: 2}, "chili": {rarity: 3}},
+    },
+    "eat eggplant": {
+      biome: "home",
+      rarity: 2,
+      objectType: "eggplant",
+      minAge: 15,
+      emotion: ["happy", "laughing"],
+      message: ["Mmm, eggplant!"],
+      action: "remove",
+      target: {"eggplant": {rarity: 1},},
     },
     "asleep": {
       biome: "home",
