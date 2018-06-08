@@ -277,7 +277,7 @@
       for (var j = 0; j < json.objects.length; j++) {
         var jObj = json.objects[j]
         var ObjClass = getClassForType(jObj.type)
-        if (!objClass) {
+        if (!ObjClass) {
           continue
         }
         var obj = new ObjClass()
@@ -693,9 +693,9 @@
       var biome = this.getCurrentBiome().spawnObjects(targetRarity, 1, true)
     } else if (action === "moveToHome") {
       this.getCurrentBiome().remove(target, 1, true)
-      this.home.spawnObjects(target, 1, true)
+      this.home.spawnObjects(targetRarity, 1, true)
     } else if (action === "remove") {
-      this.getCurrentBiome().remove(targetRarity, 1, true)
+      this.getCurrentBiome().remove(target, 1, true)
     }
     // todo more actions
   }
