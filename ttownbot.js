@@ -377,7 +377,7 @@
       var mapRow = this.map[r]
       for (var c = 0; c < mapRow.length; c++) {
         var tile = mapRow[c]
-        if (allowedTiles.indexOf(tile) >= 0) {
+        if (allowedTiles.indexOf(tile) >= 0 && this.isEmpty(c, r)) {
           available.push({x: c, y: r})
         }
       }
@@ -692,8 +692,8 @@
     } else if (action === "spawn") {
       var biome = this.getCurrentBiome().spawnObjects(targetRarity, 1, true)
     } else if (action === "moveToHome") {
-      this.getCurrentBiome().remove(target, 1, true)
-      this.home.spawnObjects(targetRarity, 1, true)
+      this.getCurrentBiome().remove(target, 1, false)
+      this.home.spawnObjects(targetRarity, 1, false)
     } else if (action === "remove") {
       this.getCurrentBiome().remove(target, 1, true)
     }
@@ -1133,7 +1133,7 @@
     },
     "forest": {
       tileSpawnTypes: {".": {rarity: 1}, "t": {rarity: 2}, "r": {rarity: 4} },
-      animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 1}, "bear": {rarity: 5}},
+      animalSpawnTypes: {"snail": {rarity: 1}, "bee": {rarity: 2}, "squirrel": {rarity: 1}, "bear": {rarity: 3}},
       numAnimals: 5,
       plantSpawnTypes: {"flower": {rarity: 2}, "clover": {rarity: 1}, "mushroom": {rarity: 2}, "four leaf clover": {rarity: 10}},
       numPlants: 5,
@@ -1167,6 +1167,13 @@
       pos: [{x: 9, y: 1}],
       message: ["Looking into the pond", "", ""],
     },
+    "looking around the pasture": {
+      biome: "home",
+      rarity: 3,
+      onTile: ["g"],
+      emotion: ["normal", "angry", "happy"],
+      message: ["Farm animals...they'll come someday!", "", ""],
+    },
     "looking around home": {
       biome: "home",
       rarity: 1,
@@ -1176,7 +1183,7 @@
     "where to go": {
       biome: "home",
       rarity: 1,
-      timeOfDay: [4],
+      timeOfDay: [4, 5],
       pos: [{x: 1, y: 6}],
       emotion: ["normal"],
       message: ["Where should we go today?"],
@@ -1192,7 +1199,7 @@
     "random excursion": {
       biome: "home",
       rarity: 1,
-      timeOfDay: [4],
+      timeOfDay: [3],
       onTile: [".", "r"],
       emotion: ["happy"],
       message: ["Let's go somewhere..."],
@@ -1213,13 +1220,53 @@
     },
     "eat eggplant": {
       biome: "home",
-      rarity: 2,
+      rarity: 3,
       objectType: "eggplant",
       minAge: 15,
       emotion: ["happy", "laughing"],
       message: ["Mmm, eggplant!"],
       action: "remove",
       target: {"eggplant": {rarity: 1},},
+    },
+    "eat carrot": {
+      biome: "home",
+      rarity: 3,
+      objectType: "carrot",
+      minAge: 15,
+      emotion: ["happy"],
+      message: ["Love these lil orange pyramids"],
+      action: "remove",
+      target: {"carrot": {rarity: 1},},
+    },
+    "eat corn": {
+      biome: "home",
+      rarity: 3,
+      objectType: "corn",
+      minAge: 15,
+      emotion: ["normal", "laughing"],
+      message: ["I'm going to eat this corn...RIGHT HERE!"],
+      action: "remove",
+      target: {"corn": {rarity: 1},},
+    },
+    "eat chili": {
+      biome: "home",
+      rarity: 4,
+      objectType: "chili",
+      minAge: 15,
+      emotion: ["scared"],
+      message: ["Nomming on this chili pepper..."],
+      action: "remove",
+      target: {"chili": {rarity: 1},},
+    },
+    "collect mushroom": {
+      biome: "home",
+      rarity: 4,
+      objectType: "mushroom",
+      minAge: 10,
+      emotion: ["laughing"],
+      message: ["I love picking mushrooms"],
+      action: "remove",
+      target: {"mushroom": {rarity: 1},},
     },
     "asleep": {
       biome: "home",
@@ -1235,6 +1282,16 @@
       pos: [{x: 1, y: 3}],
       emotion: ["scared", "normal"],
       message: ["What's this?", "A...shopping cart...?"],
+    },
+    "cart mushroom": {
+      biome: "home",
+      rarity: 2,
+      randomEvent: "shopping cart",
+      pos: [{x: 1, y: 3}],
+      emotion: ["happy", "laughing"],
+      message: ["There's a mushroom in here!"],
+      action: "spawn",
+      target: {"mushroom": {rarity: 1},},
     },
 
     "looking around forest": {
@@ -1257,6 +1314,16 @@
       emotion: ["laughing", "happy"],
       message: [""],
     },
+    "take a bear home": {
+      biome: "forest",
+      rarity: 3,
+      objectType: "bear",
+      emotion: ["laughing", "happy"],
+      message: ["See you at home, bear!"],
+      action: "moveToHome",
+      target: {"bear": {rarity: 1}},
+    },
+
 
     "looking around desert": {
       biome: "desert",
