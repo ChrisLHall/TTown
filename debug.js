@@ -5,3 +5,7 @@ console.log = function (message) {
   var txt = (typeof message != 'undefined') ? message.toString() : "undefined"
   msgbox.innerHTML = txt + "<br>" + msgbox.innerHTML
 }
+
+window.onerror = function (e) {
+  console.log("Window error: " + e)
+}
